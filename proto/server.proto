@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package server;
+option go_package = ".;pb";
+
+message Player {
+  string username = 1;
+  int32 points = 2;
+}
+
+message JoinRequest { string username = 1; }
+
+message JoinResponse {
+  bool success = 1;
+  fixed64 game_id = 2;
+
+  // fields related to the game configs
+  int32 duration = 3;
+  int32 points = 4;
+  int32 credit_interest = 5;
+  int32 deposit_interest = 6;
+
+  // players who already joined the game
+  repeated Player players = 7;
+}
+
+message StartRequest {
+  string username = 1;
+  fixed64 game_id = 2;
+}
+
+message StartResponse { bool success = 1; }
+
+message CreditRequest {
+  string username = 1;
+  fixed64 game_id = 2;
+  int64 value = 3;
+}
+
+message CreditResponse { bool success = 1; }
+
+message DepositRequest {
+  string username = 1;
+  fixed64 game_id = 2;
+  int64 value = 3;
+}
+
+message DepositResponse { bool success = 1; }
+
+message StreamRequest {
+  string username = 1;
+  fixed64 game_id = 2;
+}
+
+message StreamResponse {
+  oneof event {
+    Start start = 1;
+    Join join = 2;
+    Transaction transaction = 3;
+  }
+
+  // It might have contained time so that client
+  // can precisely estimate the remaining time.
+  // However, we will ignore it for now.
+  message Start {}
+
+  message Join { Player player = 1; }
+
+  message Transaction {
+    // Server will recalculate the amount
+    // of money for each player and send it
+    // to client. This way, client won't have
+    // to do calculations. It can just update
+    // the fields showing amounts of "points"
+    // for each player.
+    repeated Player players = 1;
+
+    oneof event {
+      Credit credit = 2;
+      Deposit deposit = 3;
+      Theft theft = 4;
+    }
+
+    message Credit {
+      string username = 1;
+      int32 value = 2;
+    }
+
+    message Deposit {
+      string username = 1;
+      int32 value = 2;
+    }
+
+    message Theft {
+      repeated RobbedPlayer robbed_players = 1;
+
+      message RobbedPlayer {
+        string username = 1;
+        // value shows how much money has been stolen from the player.
+        int32 value = 2;
+      }
+    }
+  }
+}
+
+// The service will not use global UTC time.
+// It will just order requests based on the order
+// of arrival to the server.
+// The requirement to the service is to maintain
+// the invariant that total amount of money is
+// unchangeable.
+service Game {
+  // User just needs to provide username, which he or she
+  // wants to be used for the game.
+  // We will check if the username chosen by the user
+  // for the game is unique, i.e. if no other user in
+  // this particular game has chosen the same username.
+  // If all games are full or finished, we will
+  // create a new one.
+  // We will also return game duration in seconds and the initial
+  // amoung of "points" for the player.
+  rpc Join(JoinRequest) returns (JoinResponse) {}
+
+  // rpc Leave - impossible to have if we want to maintain invariant
+  // of total amount of money. Alternative - redistribute the money.
+
+  // One of the users will start the game. We cannot automatically
+  // start the game, since it is not some popular project with
+  // a constant flow of users - there may not be enough users in
+  // a game.
+  // We will probably assign the first user to
+  // enter the game to be eligible to start the game.
+  // Thus, we will check username and respond if the start
+  // request has been successful.
+  rpc Start(StartRequest) returns (StartResponse) {}
+
+  rpc Credit(CreditRequest) returns (CreditResponse) {}
+
+  rpc Deposit(DepositRequest) returns (DepositResponse) {}
+
+  // Other RPCs related to the game scenario will be similar to
+  // the Credit and Deposit RPCs.
+
+  rpc Stream(StreamRequest) returns (stream StreamResponse) {}
+}
