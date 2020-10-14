@@ -24,6 +24,13 @@ message JoinResponse {
   repeated Player players = 7;
 }
 
+message LeaveRequest {
+  string username = 1;
+  string game_id = 2;
+}
+
+message LeaveResponse {}
+
 message StartRequest {
   string username = 1;
   fixed64 game_id = 2;
@@ -54,17 +61,20 @@ message StreamRequest {
 
 message StreamResponse {
   oneof event {
-    Start start = 1;
-    Join join = 2;
-    Transaction transaction = 3;
+    Join join = 1;
+    Leave leave = 2;
+    Start start = 3;
+    Transaction transaction = 4;
   }
+
+  message Join { Player player = 1; }
+
+  message Leave { string username = 1; }
 
   // It might have contained time so that client
   // can precisely estimate the remaining time.
   // However, we will ignore it for now.
   message Start {}
-
-  message Join { Player player = 1; }
 
   message Transaction {
     // Server will recalculate the amount
@@ -117,12 +127,11 @@ service Game {
   // this particular game has chosen the same username.
   // If all games are full or finished, we will
   // create a new one.
-  // We will also return game duration in seconds and the initial
-  // amoung of "points" for the player.
-  rpc Join(JoinRequest) returns (JoinResponse) {}
+  // We will also return the initial game configs such as
+  // game duration, amount of points, etc.
+  rpc Join(JoinRequest) returns(JoinResponse) {}
 
-  // rpc Leave - impossible to have if we want to maintain invariant
-  // of total amount of money. Alternative - redistribute the money.
+  rpc Leave(LeaveRequest) returns(LeaveResponse) {}
 
   // One of the users will start the game. We cannot automatically
   // start the game, since it is not some popular project with
@@ -132,14 +141,14 @@ service Game {
   // enter the game to be eligible to start the game.
   // Thus, we will check username and respond if the start
   // request has been successful.
-  rpc Start(StartRequest) returns (StartResponse) {}
+  rpc Start(StartRequest) returns(StartResponse) {}
 
-  rpc Credit(CreditRequest) returns (CreditResponse) {}
+  rpc Credit(CreditRequest) returns(CreditResponse) {}
 
-  rpc Deposit(DepositRequest) returns (DepositResponse) {}
+  rpc Deposit(DepositRequest) returns(DepositResponse) {}
 
   // Other RPCs related to the game scenario will be similar to
   // the Credit and Deposit RPCs.
 
-  rpc Stream(StreamRequest) returns (stream StreamResponse) {}
+  rpc Stream(StreamRequest) returns(stream StreamResponse) {}
 }
