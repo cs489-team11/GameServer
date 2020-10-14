@@ -19,6 +19,8 @@ import (
 type Server struct {
 	listener net.Listener
 	mutex    sync.RWMutex
+	// time ? do I need it (e.g. for lottery) or can I just do it using some timer notification?
+	gameConfig gameConfig
 }
 
 // NewServer will return a new instance of the server.
