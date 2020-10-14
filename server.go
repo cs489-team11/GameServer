@@ -2,44 +2,58 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/cs489-team11/server/pb"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
+// Server is a type for the server, which will
+// track the games, serve the user requests, maintain
+// money invariant, and broadcast events to users.
 type Server struct {
 	listener net.Listener
 	mutex    sync.RWMutex
 }
 
+// NewServer will return a new instance of the server.
 func NewServer() *Server {
 	return &Server{}
 }
 
-func (s *Server) SayHello(_ context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
-	return &pb.HelloReply{
-		Message: "Hello Ethics Project!!!",
-	}, nil
+func (s *Server) Join(_ context.Context, req *pb.JoinRequest) (*pb.JoinResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (s *Server) SayRepeatHello(req *pb.RepeatHelloRequest, srv pb.Greeter_SayRepeatHelloServer) error {
-	for i := 1; i <= 5; i++ {
-		srv.Send(&pb.HelloReply{
-			Message: fmt.Sprintf("Streaming with Ethics Project %d\n", i),
-		})
-		time.Sleep(500 * time.Millisecond)
-	}
-	return nil
+func (s *Server) Leave(_ context.Context, req *pb.LeaveRequest) (*pb.LeaveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
-func (s *Server) Listen(serv_addr string) (string, error) {
-	listener, err := net.Listen("tcp", serv_addr)
+func (s *Server) Start(_ context.Context, req *pb.StartRequest) (*pb.StartResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
+}
+
+func (s *Server) Credit(_ context.Context, req *pb.CreditRequest) (*pb.CreditResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
+}
+
+func (s *Server) Deposit(_ context.Context, req *pb.DepositRequest) (*pb.DepositResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
+}
+
+func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
+	return status.Errorf(codes.Unimplemented, "Unimplemented")
+}
+
+// Listen makes server listen for tcp connections on specified
+// server address.
+func (s *Server) Listen(servAddr string) (string, error) {
+	listener, err := net.Listen("tcp", servAddr)
 	if err != nil {
 		log.Print("Failed to init listener:", err)
 		return "", err
@@ -50,8 +64,10 @@ func (s *Server) Listen(serv_addr string) (string, error) {
 	return s.listener.Addr().String(), nil
 }
 
-func (s *Server) Start() {
+// Launch will register the server for Game service
+// and make it serve requests.
+func (s *Server) Launch() {
 	srv := grpc.NewServer()
-	pb.RegisterGreeterServer(srv, s)
+	pb.RegisterGameServer(srv, s)
 	srv.Serve(s.listener)
 }
