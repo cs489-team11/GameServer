@@ -61,8 +61,10 @@ message StreamRequest {
 
 message StreamResponse {
   oneof event {
+    // Events for game in "Waiting" state.
     Join join = 1;
     Leave leave = 2;
+    // Events for game in "Active" state.
     Start start = 3;
     Transaction transaction = 4;
   }
@@ -129,8 +131,10 @@ service Game {
   // create a new one.
   // We will also return the initial game configs such as
   // game duration, amount of points, etc.
+  // NOTE: players can only join or leave the "Waiting" game.
+  // For "Active" game, new users cannot join and existing
+  // users cannot leave.
   rpc Join(JoinRequest) returns(JoinResponse) {}
-
   rpc Leave(LeaveRequest) returns(LeaveResponse) {}
 
   // One of the users will start the game. We cannot automatically
