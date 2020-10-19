@@ -45,7 +45,7 @@ message StartResponse { bool success = 1; }
 message CreditRequest {
   fixed64 user_id = 1;
   fixed64 game_id = 2;
-  int64 value = 3;
+  int32 value = 3;
 }
 
 message CreditResponse { bool success = 1; }
@@ -53,7 +53,7 @@ message CreditResponse { bool success = 1; }
 message DepositRequest {
   fixed64 user_id = 1;
   fixed64 game_id = 2;
-  int64 value = 3;
+  int32 value = 3;
 }
 
 message DepositResponse { bool success = 1; }
