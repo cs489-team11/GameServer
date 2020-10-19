@@ -1,17 +1,21 @@
+// TODO: change all money-related values to floats (due to dealing with percents) or find workaround.
+// TODO: add lottery messages
+// TODO: add game (quiz/bidding) messages.
 syntax = "proto3";
 
 package server;
 option go_package = ".;pb";
 
 message Player {
-  string username = 1;
-  int32 points = 2;
+  fixed64 user_id = 1;
+  string username = 2;
+  int32 points = 3;
 }
 
 message JoinRequest { string username = 1; }
 
 message JoinResponse {
-  bool success = 1;
+  fixed64 user_id = 1;
   fixed64 game_id = 2;
 
   // fields related to the game configs
@@ -25,21 +29,21 @@ message JoinResponse {
 }
 
 message LeaveRequest {
-  string username = 1;
+  fixed64 user_id = 1;
   string game_id = 2;
 }
 
 message LeaveResponse {}
 
 message StartRequest {
-  string username = 1;
+  fixed64 user_id = 1;
   fixed64 game_id = 2;
 }
 
 message StartResponse { bool success = 1; }
 
 message CreditRequest {
-  string username = 1;
+  fixed64 user_id = 1;
   fixed64 game_id = 2;
   int64 value = 3;
 }
@@ -47,7 +51,7 @@ message CreditRequest {
 message CreditResponse { bool success = 1; }
 
 message DepositRequest {
-  string username = 1;
+  fixed64 user_id = 1;
   fixed64 game_id = 2;
   int64 value = 3;
 }
@@ -55,7 +59,7 @@ message DepositRequest {
 message DepositResponse { bool success = 1; }
 
 message StreamRequest {
-  string username = 1;
+  fixed64 user_id = 1;
   fixed64 game_id = 2;
 }
 
@@ -71,7 +75,7 @@ message StreamResponse {
 
   message Join { Player player = 1; }
 
-  message Leave { string username = 1; }
+  message Leave { fixed64 user_id = 1; }
 
   // It might have contained time so that client
   // can precisely estimate the remaining time.
@@ -88,18 +92,30 @@ message StreamResponse {
     repeated Player players = 1;
 
     oneof event {
-      Credit credit = 2;
-      Deposit deposit = 3;
-      Theft theft = 4;
+      UseCredit use_credit = 2;
+      UseDeposit use_deposit = 3;
+      ReturnCredit return_credit = 4;
+      ReturnDeposit return_deposit = 5;
+      Theft theft = 6;
     }
 
-    message Credit {
-      string username = 1;
+    message UseCredit {
+      fixed64 user_id = 1;
       int32 value = 2;
     }
 
-    message Deposit {
-      string username = 1;
+    message UseDeposit {
+      fixed64 user_id = 1;
+      int32 value = 2;
+    }
+
+    message ReturnCredit {
+      fixed64 user_id = 1;
+      int32 value = 2;
+    }
+
+    message ReturnDeposit {
+      fixed64 user_id = 1;
       int32 value = 2;
     }
 
@@ -107,7 +123,7 @@ message StreamResponse {
       repeated RobbedPlayer robbed_players = 1;
 
       message RobbedPlayer {
-        string username = 1;
+        fixed64 user_id = 1;
         // value shows how much money has been stolen from the player.
         int32 value = 2;
       }
@@ -122,13 +138,11 @@ message StreamResponse {
 // the invariant that total amount of money is
 // unchangeable.
 service Game {
-  // User just needs to provide username, which he or she
-  // wants to be used for the game.
-  // We will check if the username chosen by the user
-  // for the game is unique, i.e. if no other user in
-  // this particular game has chosen the same username.
+  // To join, user needs to provide username to be displayed.
   // If all games are full or finished, we will
   // create a new one.
+  // Unique user_id will be generated for using within a game
+  // and returned.
   // We will also return the initial game configs such as
   // game duration, amount of points, etc.
   // NOTE: players can only join or leave the "Waiting" game.
@@ -141,10 +155,6 @@ service Game {
   // start the game, since it is not some popular project with
   // a constant flow of users - there may not be enough users in
   // a game.
-  // We will probably assign the first user to
-  // enter the game to be eligible to start the game.
-  // Thus, we will check username and respond if the start
-  // request has been successful.
   rpc Start(StartRequest) returns(StartResponse) {}
 
   rpc Credit(CreditRequest) returns(CreditResponse) {}
