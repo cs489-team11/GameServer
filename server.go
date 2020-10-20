@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net"
-	"sync"
 
 	"github.com/cs489-team11/server/pb"
 
@@ -17,15 +16,19 @@ import (
 // track the games, serve the user requests, maintain
 // money invariant, and broadcast events to users.
 type Server struct {
-	listener net.Listener
-	mutex    sync.RWMutex
-	// time ? do I need it (e.g. for lottery) or can I just do it using some timer notification?
-	gameConfig gameConfig
+	listener    net.Listener
+	gameConfig  GameConfig
+	waitingGame *game
+	activeGames map[gameID]*game
 }
 
 // NewServer will return a new instance of the server.
-func NewServer() *Server {
-	return &Server{}
+func NewServer(gameConfig GameConfig) *Server {
+	return &Server{
+		gameConfig:  gameConfig,
+		waitingGame: newGame(gameConfig),
+		activeGames: make(map[gameID]*game),
+	}
 }
 
 func (s *Server) Join(_ context.Context, req *pb.JoinRequest) (*pb.JoinResponse, error) {
