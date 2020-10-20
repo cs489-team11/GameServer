@@ -20,12 +20,13 @@ message JoinResponse {
 
   // fields related to the game configs
   int32 duration = 3;
-  int32 points = 4;
-  int32 credit_interest = 5;
-  int32 deposit_interest = 6;
+  int32 player_points = 4;
+  int32 bank_points_per_player = 5;
+  int32 credit_interest = 6;
+  int32 deposit_interest = 7;
 
   // players who already joined the game
-  repeated Player players = 7;
+  repeated Player players = 8;
 }
 
 message LeaveRequest {
@@ -48,7 +49,15 @@ message CreditRequest {
   int32 value = 3;
 }
 
-message CreditResponse { bool success = 1; }
+// In case of credit, it cannot be granted
+// if the bank doesn't have enough money or
+// if the user asks too much. These reasons
+// will be stated in "explanation" field if
+// "success" is false.
+message CreditResponse {
+  bool success = 1;
+  string explanation = 2;
+}
 
 message DepositRequest {
   fixed64 user_id = 1;
@@ -56,7 +65,15 @@ message DepositRequest {
   int32 value = 3;
 }
 
-message DepositResponse { bool success = 1; }
+// In case of deposit, it cannot be granted
+// if the user doesn't have enough money or
+// the user puts too much. These reasons
+// will be stated in "explanation" field if
+// "success" is false.
+message DepositResponse {
+  bool success = 1;
+  string explanation = 2;
+}
 
 message StreamRequest {
   fixed64 user_id = 1;
