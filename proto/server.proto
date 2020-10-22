@@ -7,7 +7,7 @@ package server;
 option go_package = ".;pb";
 
 message Player {
-  fixed64 user_id = 1;
+  string user_id = 1;
   string username = 2;
   int32 points = 3;
 }
@@ -15,8 +15,8 @@ message Player {
 message JoinRequest { string username = 1; }
 
 message JoinResponse {
-  fixed64 user_id = 1;
-  fixed64 game_id = 2;
+  string user_id = 1;
+  string game_id = 2;
 
   // fields related to the game configs
   int32 duration = 3;
@@ -24,28 +24,30 @@ message JoinResponse {
   int32 bank_points_per_player = 5;
   int32 credit_interest = 6;
   int32 deposit_interest = 7;
+  int32 credit_time = 8;
+  int32 deposit_time = 9;
 
   // players who already joined the game
-  repeated Player players = 8;
+  repeated Player players = 10;
 }
 
 message LeaveRequest {
-  fixed64 user_id = 1;
+  string user_id = 1;
   string game_id = 2;
 }
 
 message LeaveResponse {}
 
 message StartRequest {
-  fixed64 user_id = 1;
-  fixed64 game_id = 2;
+  string user_id = 1;
+  string game_id = 2;
 }
 
 message StartResponse { bool success = 1; }
 
 message CreditRequest {
-  fixed64 user_id = 1;
-  fixed64 game_id = 2;
+  string user_id = 1;
+  string game_id = 2;
   int32 value = 3;
 }
 
@@ -60,8 +62,8 @@ message CreditResponse {
 }
 
 message DepositRequest {
-  fixed64 user_id = 1;
-  fixed64 game_id = 2;
+  string user_id = 1;
+  string game_id = 2;
   int32 value = 3;
 }
 
@@ -76,8 +78,8 @@ message DepositResponse {
 }
 
 message StreamRequest {
-  fixed64 user_id = 1;
-  fixed64 game_id = 2;
+  string user_id = 1;
+  string game_id = 2;
 }
 
 message StreamResponse {
@@ -92,7 +94,7 @@ message StreamResponse {
 
   message Join { Player player = 1; }
 
-  message Leave { fixed64 user_id = 1; }
+  message Leave { string user_id = 1; }
 
   // It might have contained time so that client
   // can precisely estimate the remaining time.
@@ -117,22 +119,22 @@ message StreamResponse {
     }
 
     message UseCredit {
-      fixed64 user_id = 1;
+      string user_id = 1;
       int32 value = 2;
     }
 
     message UseDeposit {
-      fixed64 user_id = 1;
+      string user_id = 1;
       int32 value = 2;
     }
 
     message ReturnCredit {
-      fixed64 user_id = 1;
+      string user_id = 1;
       int32 value = 2;
     }
 
     message ReturnDeposit {
-      fixed64 user_id = 1;
+      string user_id = 1;
       int32 value = 2;
     }
 
@@ -140,7 +142,7 @@ message StreamResponse {
       repeated RobbedPlayer robbed_players = 1;
 
       message RobbedPlayer {
-        fixed64 user_id = 1;
+        string user_id = 1;
         // value shows how much money has been stolen from the player.
         int32 value = 2;
       }
