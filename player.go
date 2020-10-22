@@ -23,3 +23,11 @@ func newPlayer(username username, points int32) *player {
 		points:   points,
 	}
 }
+
+func (p *player) toPBPlayer() *pb.Player {
+	return &pb.Player{
+		UserId:   string(p.userID),
+		Username: string(p.username),
+		Points:   p.points,
+	}
+}
