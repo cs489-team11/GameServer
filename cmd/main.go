@@ -17,9 +17,11 @@ func parseArgs(
 	bankPointsPerPlayer *int32,
 	creditInterest *int32,
 	depositInterest *int32,
+	creditTime *int32,
+	depositTime *int32,
 ) {
 	flag.Parse()
-	if flag.NArg() < 6 {
+	if flag.NArg() < 8 {
 		fmt.Println("Got less arguments than expected")
 		os.Exit(1)
 	}
@@ -60,6 +62,20 @@ func parseArgs(
 		os.Exit(2)
 	}
 	*depositInterest = int32(arg5)
+
+	arg6, err := strconv.Atoi(flag.Arg(6))
+	if err != nil {
+		fmt.Printf("%s is not an integer\n", flag.Arg(6))
+		os.Exit(2)
+	}
+	*creditTime = int32(arg6)
+
+	arg7, err := strconv.Atoi(flag.Arg(7))
+	if err != nil {
+		fmt.Printf("%s is not an integer\n", flag.Arg(7))
+		os.Exit(2)
+	}
+	*depositTime = int32(arg7)
 }
 
 func main() {
@@ -69,12 +85,46 @@ func main() {
 	var bankPointsPerPlayer int32
 	var creditInterest int32
 	var depositInterest int32
+	var creditTime int32
+	var depositTime int32
 	parseArgs(
-		&servAddr, &duration, &playerPoints, &bankPointsPerPlayer, &creditInterest, &depositInterest,
+		&servAddr,
+		&duration,
+		&playerPoints,
+		&bankPointsPerPlayer,
+		&creditInterest,
+		&depositInterest,
+		&creditTime,
+		&depositTime,
 	)
 
+	if creditInterest <= depositInterest {
+		fmt.Printf(
+			"Credit interest (%d) has to be larger than deposit interest (%d).\n",
+			creditInterest,
+			depositInterest,
+		)
+		os.Exit(1)
+	}
+
+	if creditTime >= duration || depositTime >= duration {
+		fmt.Printf(
+			"Credit (%d) and deposit (%d) times have to be less than duration of a game (%d).\n",
+			creditTime,
+			depositTime,
+			duration,
+		)
+		os.Exit(1)
+	}
+
 	gameConfig := server.NewGameConfig(
-		duration, playerPoints, bankPointsPerPlayer, creditInterest, depositInterest,
+		duration,
+		playerPoints,
+		bankPointsPerPlayer,
+		creditInterest,
+		depositInterest,
+		creditTime,
+		depositTime,
 	)
 
 	s := server.NewServer(gameConfig)
