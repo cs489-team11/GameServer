@@ -83,27 +83,30 @@ func newGame(config GameConfig) *game {
 
 // Creates a new player with a provided username
 // and adds it to the game.
-func (g *game) addPlayer(username username) error {
-	if g.state != waitingState {
-		return fmt.Errorf("you cannot enter game after it has been started")
-	}
+// NOTE: only should be called on game in waiting state.
+func (g *game) addPlayer(username username) {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
 	player := newPlayer(username, g.config.playerPoints)
 	g.players[player.userID] = player
-	return nil
 }
 
-// Deletes player from the game
-func (g *game) deletePlayer(userID userID) error {
-	if g.state != waitingState {
-		return fmt.Errorf("you cannot leave game after it has been started")
-	}
+// Deletes player from the game.
+// NOTE: only should be called on game in waiting state.
+func (g *game) deletePlayer(userID userID) {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
 	delete(g.players, userID)
-	return nil
 }
 
 // Bank points are calculated.
 func (g *game) start() {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	g.state = activeState
 	g.bankPoints = int32(len(g.players)) * g.config.bankPointsPerPlayer
+
 	// TODO: launch theft timer
 }
 

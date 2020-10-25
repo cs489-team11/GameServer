@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 
 	"github.com/cs489-team11/server/pb"
 
@@ -18,6 +19,7 @@ import (
 // money invariant, and broadcast events to users.
 type Server struct {
 	listener    net.Listener
+	mutex       sync.RWMutex
 	gameConfig  GameConfig
 	waitingGame *game
 	activeGames map[gameID]*game
@@ -36,12 +38,49 @@ func (s *Server) Join(_ context.Context, req *pb.JoinRequest) (*pb.JoinResponse,
 	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
 }
 
+// Leave deleted player from the waiting game.
 func (s *Server) Leave(_ context.Context, req *pb.LeaveRequest) (*pb.LeaveResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	reqGameID := gameID(req.GetGameId())
+	reqUserID := userID(req.GetUserId())
+
+	if s.waitingGame.gameID != reqGameID {
+		err := fmt.Errorf(
+			"game with id %v doesn't exist or has been already started (can't join active game)",
+			reqGameID,
+		)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	s.waitingGame.deletePlayer(reqUserID)
+	return &pb.LeaveResponse{}, nil
 }
 
+// Start will start the game, i.e. change it from "waiting" to "active".
+// New waiting game will be created for other users to join.
 func (s *Server) Start(_ context.Context, req *pb.StartRequest) (*pb.StartResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	reqGameID := gameID(req.GetGameId())
+
+	if s.waitingGame.gameID != reqGameID {
+		log.Printf(
+			"attempt to start game with id different from waiting game id; have: %v, want %v\n",
+			reqGameID,
+			s.waitingGame.gameID,
+		)
+		// ignore the error
+		return &pb.StartResponse{}, nil
+	}
+
+	s.waitingGame.start()
+	s.activeGames[s.waitingGame.gameID] = s.waitingGame
+	s.waitingGame = newGame(s.gameConfig)
+
+	return &pb.StartResponse{}, nil
 }
 
 // Credit will check if the credit can be granted. It will return "True" for success, if
@@ -49,6 +88,9 @@ func (s *Server) Start(_ context.Context, req *pb.StartRequest) (*pb.StartRespon
 // explanation about why it hasn't been granted.
 // Requesting client has to make sure that provided game_id and user_id are vaild.
 func (s *Server) Credit(_ context.Context, req *pb.CreditRequest) (*pb.CreditResponse, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	reqGameID := gameID(req.GetGameId())
 	reqUserID := userID(req.GetUserId())
 	reqVal := req.GetValue()
@@ -78,6 +120,9 @@ func (s *Server) Deposit(_ context.Context, req *pb.DepositRequest) (*pb.Deposit
 
 // Stream opens the server stream with the user.
 func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	var game *game = nil
 	reqGameID := gameID(req.GetGameId())
 	reqUserID := userID(req.GetUserId())
