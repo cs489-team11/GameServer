@@ -38,12 +38,15 @@ message LeaveRequest {
 
 message LeaveResponse {}
 
+// Ideally, we have also to check
+// user_id. But for now, let's simply
+// use game_id. Anyone, even people outside
+// the game can start it.
 message StartRequest {
-  string user_id = 1;
-  string game_id = 2;
+  string game_id = 1;
 }
 
-message StartResponse { bool success = 1; }
+message StartResponse {}
 
 message CreditRequest {
   string user_id = 1;
