@@ -35,8 +35,16 @@ func NewServer(gameConfig GameConfig) *Server {
 	}
 }
 
+// Join adds a player to the game.
 func (s *Server) Join(_ context.Context, req *pb.JoinRequest) (*pb.JoinResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	reqUsername := username(req.GetUsername())
+	userID := s.waitingGame.addPlayer(reqUsername)
+
+	res := s.getJoinResponseMessage(userID, s.waitingGame)
+	return res, nil
 }
 
 // Leave deleted player from the waiting game.
@@ -147,6 +155,25 @@ func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
 
 	game.setPlayerStream(reqUserID, srv)
 	return nil
+}
+
+func (s *Server) getJoinResponseMessage(
+	userID userID, game *game,
+) *pb.JoinResponse {
+	game.mutex.RLock()
+	defer game.mutex.RUnlock()
+	return &pb.JoinResponse{
+		UserId:              string(userID),
+		GameId:              string(game.gameID),
+		Duration:            game.config.duration,
+		PlayerPoints:        game.config.playerPoints,
+		BankPointsPerPlayer: game.config.bankPointsPerPlayer,
+		CreditInterest:      game.config.creditInterest,
+		DepositInterest:     game.config.depositInterest,
+		CreditTime:          game.config.creditTime,
+		DepositTime:         game.config.depositTime,
+		Players:             game.getPBPlayersWithBank(),
+	}
 }
 
 func (s *Server) getCreditResponseMessage(success bool, explanation string) *pb.CreditResponse {

@@ -84,11 +84,12 @@ func newGame(config GameConfig) *game {
 // Creates a new player with a provided username
 // and adds it to the game.
 // NOTE: only should be called on game in waiting state.
-func (g *game) addPlayer(username username) {
+func (g *game) addPlayer(username username) userID {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 	player := newPlayer(username, g.config.playerPoints)
 	g.players[player.userID] = player
+	return player.userID
 }
 
 // Deletes player from the game.
