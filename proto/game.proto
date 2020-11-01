@@ -92,7 +92,8 @@ message StreamResponse {
     Leave leave = 2;
     // Events for game in "Active" state.
     Start start = 3;
-    Transaction transaction = 4;
+    Finish finish = 4;
+    Transaction transaction = 5;
   }
 
   message Join { Player player = 1; }
@@ -103,6 +104,11 @@ message StreamResponse {
   // can precisely estimate the remaining time.
   // However, we will ignore it for now.
   message Start {}
+
+  message Finish {
+    repeated Player players = 1;
+    string winner_user_id = 2;
+  }
 
   message Transaction {
     // Server will recalculate the amount
