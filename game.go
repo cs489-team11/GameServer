@@ -99,6 +99,21 @@ func (g *game) deletePlayer(userID userID) {
 	delete(g.players, userID)
 }
 
+// NOTE: This function uses readlock, so it has to be used carefully.
+func (g *game) getWinnerID() userID {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	noUserID := userID("")
+	winnerID := noUserID
+	for _, player := range g.players {
+		if winnerID == noUserID || player.points > g.players[winnerID].points {
+			winnerID = player.userID
+		}
+	}
+	return winnerID
+}
+
 // Bank points are calculated.
 func (g *game) start() {
 	g.mutex.Lock()
@@ -107,7 +122,21 @@ func (g *game) start() {
 	g.state = activeState
 	g.bankPoints = int32(len(g.players)) * g.config.bankPointsPerPlayer
 
+	// broadcasting game start
+	go func() {
+		msg := g.getStartMessage()
+		g.broadcast(msg)
+	}()
+
 	// TODO: launch theft timer
+}
+
+func (g *game) finish() {
+	go func() {
+		winnerUserID := g.getWinnerID()
+		msg := g.getFinishMessage(winnerUserID)
+		g.broadcast(msg)
+	}()
 }
 
 // useCredit returns "True" and empty string, if credit can be granted.
@@ -197,6 +226,32 @@ func (g *game) getPBPlayersWithBank() []*pb.Player {
 	}
 	players = append(players, g.getBankAsPBPlayer())
 	return players
+}
+
+func (g *game) getStartMessage() *pb.StreamResponse {
+	res := &pb.StreamResponse{
+		Event: &pb.StreamResponse_Start_{
+			Start: &pb.StreamResponse_Start{},
+		},
+	}
+	return res
+}
+
+// As this function uses Readlock, it has to be spawned in a separate goroutine.
+func (g *game) getFinishMessage(winnerUserID userID) *pb.StreamResponse {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	players := g.getPBPlayersWithBank()
+	res := &pb.StreamResponse{
+		Event: &pb.StreamResponse_Finish_{
+			Finish: &pb.StreamResponse_Finish{
+				Players:      players,
+				WinnerUserId: string(winnerUserID),
+			},
+		},
+	}
+	return res
 }
 
 // As this function uses Readlock, it has to be spawned in a separate goroutine.

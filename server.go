@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/cs489-team11/server/pb"
 
@@ -76,8 +77,15 @@ func (s *Server) Start(_ context.Context, req *pb.StartRequest) (*pb.StartRespon
 		return &pb.StartResponse{}, nil
 	}
 
-	s.waitingGame.start()
-	s.activeGames[s.waitingGame.gameID] = s.waitingGame
+	game := s.waitingGame
+	game.start()
+	s.activeGames[game.gameID] = game
+	// count down until game finishes
+	time.AfterFunc(time.Duration(game.config.duration)*time.Second, func() {
+		game.finish()
+	})
+
+	// create a new waiting game
 	s.waitingGame = newGame(s.gameConfig)
 
 	return &pb.StartResponse{}, nil
