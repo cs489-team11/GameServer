@@ -137,7 +137,6 @@ func (s *Server) Deposit(_ context.Context, req *pb.DepositRequest) (*pb.Deposit
 // Stream opens the server stream with the user.
 func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
 
 	var game *game = nil
 	reqGameID := gameID(req.GetGameId())
@@ -154,6 +153,10 @@ func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
 	}
 
 	game.setPlayerStream(reqUserID, srv)
+
+	// WARNING: pay attention to this
+	// when modifying code.
+	s.mutex.RUnlock()
 
 	ctx := srv.Context()
 	for {
