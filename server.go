@@ -154,6 +154,16 @@ func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
 	}
 
 	game.setPlayerStream(reqUserID, srv)
+
+	ctx := srv.Context()
+	for {
+		if ctx.Err() == context.Canceled || ctx.Err() == context.DeadlineExceeded {
+			log.Printf("Stream context is cancelled for game %v\n", game.gameID)
+			return nil
+		}
+		time.Sleep(200 * time.Second)
+	}
+
 	return nil
 }
 
