@@ -196,15 +196,27 @@ func (g *game) returnCredit(userID userID, val int32) {
 }
 
 func (g *game) setPlayerStream(userID userID, stream pb.Game_StreamServer) {
-	g.players[userID].stream = stream
+	g.players[userID].setStream(stream)
 }
 
 // Broadcast sends some event to all users in the game.
 func (g *game) broadcast(response *pb.StreamResponse) {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
 	for userID, player := range g.players {
 		stream := player.stream
+		// WARNING: this is a dirty workaround around the problem
+		// that start/deposit/etc handlers may be called before
+		// Stream handler is called or they may acquire locks first.
+		// Thus, broadcast function has to wait until all players
+		// have their streams set.
+		// This approach may easily cause deadlock.
+		for stream == nil {
+			time.Sleep(100 * time.Millisecond)
+			stream = player.stream
+		}
 		if err := stream.Send(response); err != nil {
-			log.Printf("Could not send event to %v in game %v\n", userID, g.gameID)
+			log.Printf("Could not send event to %v in game %v: %v\n", userID, g.gameID, err)
 		}
 	}
 }
