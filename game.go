@@ -221,7 +221,7 @@ func (g *game) getBankAsPBPlayer() *pb.Player {
 // another goroutine). So make sure that goroutine, which calls this function
 // uses at least read-lock.
 func (g *game) getPBPlayersWithBank() []*pb.Player {
-	players := make([]*pb.Player, len(g.players)+1)
+	var players []*pb.Player
 	for _, player := range g.players {
 		players = append(players, player.toPBPlayer())
 	}
