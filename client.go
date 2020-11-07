@@ -44,18 +44,32 @@ func (c *SampleClient) ProcessJoinResponse(res *pb.JoinResponse) {
 	)
 }
 
-func (c *SampleClient) JoinGame() error {
+func (c *SampleClient) JoinGame() (*pb.JoinResponse, error) {
 	if c.GameClient == nil {
-		return fmt.Errorf("Client is not connected to server")
+		return nil, fmt.Errorf("Client is not connected to server")
 	}
 
 	req := c.GetJoinRequest()
 	res, err := c.GameClient.Join(context.Background(), req)
-	log.Printf("Join response: %v", res)
+	log.Printf("Join response: %v\n", res)
 	if err != nil {
-		return fmt.Errorf("Failed to join game: %v\n", err)
+		return nil, fmt.Errorf("failed to join game: %v", err)
 	}
 	c.ProcessJoinResponse(res)
+	return res, nil
+}
+
+func (c *SampleClient) LeaveGame() error {
+	if c.GameClient == nil {
+		return fmt.Errorf("Client is not connected to server")
+	}
+
+	req := c.GetLeaveRequest()
+	res, err := c.GameClient.Leave(context.Background(), req)
+	log.Printf("Leave response: %v.\n", res)
+	if err != nil {
+		return fmt.Errorf("failed to leave game: %v", err)
+	}
 	return nil
 }
 
@@ -67,7 +81,7 @@ func (c *SampleClient) OpenStream() error {
 	req := c.GetStreamRequest()
 	stream, err := c.GameClient.Stream(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("Failed to open stream with server: %v\n", err)
+		return fmt.Errorf("failed to open stream with server: %v", err)
 	}
 	c.Stream = stream
 	log.Printf("Player %v opened stream successfully.\n", c.UserID)
@@ -76,13 +90,13 @@ func (c *SampleClient) OpenStream() error {
 
 func (c *SampleClient) StartGame() error {
 	if c.GameClient == nil {
-		return fmt.Errorf("Client is not connected to server")
+		return fmt.Errorf("client is not connected to server")
 	}
 
 	req := c.GetStartRequest()
 	_, err := c.GameClient.Start(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("Failed to start the game: %v", err)
+		return fmt.Errorf("failed to start the game: %v", err)
 	}
 	log.Printf("The game with id %v has been started by %v.\n", c.GameID, c.UserID)
 	return nil
@@ -91,6 +105,13 @@ func (c *SampleClient) StartGame() error {
 func (c *SampleClient) GetJoinRequest() *pb.JoinRequest {
 	return &pb.JoinRequest{
 		Username: string(c.Username),
+	}
+}
+
+func (c *SampleClient) GetLeaveRequest() *pb.LeaveRequest {
+	return &pb.LeaveRequest{
+		UserId: string(c.UserID),
+		GameId: string(c.GameID),
 	}
 }
 
