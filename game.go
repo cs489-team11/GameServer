@@ -183,8 +183,9 @@ func (g *game) returnCredit(userID userID, val int32) {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	floatVal := float64(val) * float64(g.config.creditInterest) / 100.0
-	valWithInterest := int32(math.Ceil(floatVal))
+	floatInterest := float64(val) * float64(g.config.creditInterest) / 100.0
+	interest := int32(math.Ceil(floatInterest))
+	valWithInterest := val + interest
 
 	g.bankPoints += valWithInterest
 	player.points -= valWithInterest
