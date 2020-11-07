@@ -2,14 +2,16 @@ package tests
 
 import (
 	"io"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/cs489-team11/server"
+	"github.com/cs489-team11/server/pb"
 	"github.com/stretchr/testify/require"
 )
 
-var testConfig = server.NewGameConfig(300, 200, 400, 30, 20, 15, 15)
+var testConfig = server.NewGameConfig(30, 200, 400, 30, 20, 1, 1)
 
 func TestJoinAndLeave(t *testing.T) {
 	s := server.NewServer(testConfig)
@@ -106,6 +108,32 @@ func TestStart(t *testing.T) {
 	require.NotEqual(t, joinRes1.GameId, joinRes3.GameId)
 }
 
+func runTestCreditClientStream(t *testing.T, client *server.SampleClient, debugName string) {
+	streamErr := client.OpenStream()
+	require.NoError(t, streamErr)
+	for i := 1; i < 10000; i++ {
+		streamRes, streamErr := client.Stream.Recv()
+		if streamErr == io.EOF {
+			t.Logf("%s, catched EOF error in stream", debugName)
+			break
+		}
+		require.NoError(t, streamErr)
+		switch i {
+		case 1:
+			require.IsType(
+				t, reflect.TypeOf(streamRes.Event), reflect.TypeOf(pb.StreamResponse_Start_{}),
+			)
+		case 2:
+			// check that the second event is credit
+			require.IsType(
+				t, reflect.TypeOf(streamRes.Event), reflect.TypeOf(pb.StreamResponse_Transaction_{}),
+			)
+		default:
+		}
+		t.Logf("%s, stream event: %v\n", debugName, streamRes)
+	}
+}
+
 func TestCredit(t *testing.T) {
 	s := server.NewServer(testConfig)
 	serverAddr, err := s.Listen("localhost:0")
@@ -115,36 +143,41 @@ func TestCredit(t *testing.T) {
 		t.Log("Server stopped.")
 	}()
 
-	client := server.NewSampleClient()
-	err = client.Connect(serverAddr)
+	client1 := server.NewSampleClient()
+	err = client1.Connect(serverAddr)
 	require.NoError(t, err)
 
-	_, err = client.JoinGame()
+	client2 := server.NewSampleClient()
+	err = client2.Connect(serverAddr)
 	require.NoError(t, err)
 
-	go func() {
-		streamErr := client.OpenStream()
-		require.NoError(t, streamErr)
-		for {
-			streamRes, streamErr := client.Stream.Recv()
-			if streamErr == io.EOF {
-				t.Log("Catched EOF error in stream")
-				break
-			}
-			require.NoError(t, streamErr)
-			t.Logf("Stream event: %v", streamRes)
-		}
-	}()
-
-	err = client.StartGame()
+	joinRes1, err := client1.JoinGame()
 	require.NoError(t, err)
+	joinRes2, err := client2.JoinGame()
+	require.NoError(t, err)
+	require.Equal(t, joinRes1.GameId, joinRes2.GameId)
+
+	go runTestCreditClientStream(t, client1, "client1")
+	go runTestCreditClientStream(t, client2, "client2")
+
+	err = client1.StartGame()
+	require.NoError(t, err)
+
+	res1, err := client2.TakeCredit(75)
+	require.NoError(t, err)
+	require.True(t, res1.Success)
+
+	_, err = client2.TakeCredit(-234)
+	require.NotNil(t, err)
+
+	// requesting too much money so that the bank cannot
+	// grant the credit.
+	res, err := client1.TakeCredit(100000)
+	require.NoError(t, err)
+	require.False(t, res.Success)
 
 	// this is needed, since after start is handled, the stream
 	// goroutine will be abruptly finished. so I'm giving it time
 	// to process events.
 	time.Sleep(2 * time.Second)
-
-	// TODO: finish it. I think I'll need
-	// a better way of checking which events are
-	// arriving at stream.
 }
