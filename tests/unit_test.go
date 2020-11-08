@@ -11,26 +11,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testServAddr = "178.128.85.78:9090" //"localhost:9090"
+
+//const testServAddr = "localhost:0"
+
 var testConfig = server.NewGameConfig(30, 200, 400, 30, 20, 1, 1)
 
 func TestJoinAndLeave(t *testing.T) {
-	s := server.NewServer(testConfig)
-	serverAddr, err := s.Listen("localhost:0")
+	var err error
+	/*s := server.NewServer(testConfig)
+	_, err := s.Listen("localhost:0")
 	require.NoError(t, err)
 	go func() {
 		s.Launch()
 		t.Log("Server stopped.")
-	}()
+	}()*/
 
 	client1 := server.NewSampleClient()
-	err = client1.Connect(serverAddr)
+	err = client1.Connect(testServAddr)
 	require.NoError(t, err)
 	client2 := server.NewSampleClient()
-	err = client2.Connect(serverAddr)
+	err = client2.Connect(testServAddr)
 	require.NoError(t, err)
 	client3 := server.NewSampleClient()
-	err = client3.Connect(serverAddr)
+	err = client3.Connect(testServAddr)
 	require.NoError(t, err)
+	t.Log("All clients are connected")
 
 	joinRes1, err := client1.JoinGame()
 	require.NoError(t, err)
@@ -38,6 +44,7 @@ func TestJoinAndLeave(t *testing.T) {
 	require.NoError(t, err)
 	joinRes3, err := client3.JoinGame()
 	require.NoError(t, err)
+	t.Log("Checkpoint 1")
 
 	err = client2.LeaveGame()
 	require.NoError(t, err)
@@ -45,7 +52,7 @@ func TestJoinAndLeave(t *testing.T) {
 	require.NoError(t, err)
 
 	client4 := server.NewSampleClient()
-	err = client4.Connect(serverAddr)
+	err = client4.Connect(testServAddr)
 	require.NoError(t, err)
 
 	joinRes4, err := client4.JoinGame()
@@ -73,22 +80,23 @@ func TestJoinAndLeave(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
-	s := server.NewServer(testConfig)
-	serverAddr, err := s.Listen("localhost:0")
+	var err error
+	/*s := server.NewServer(testConfig)
+	_, err := s.Listen("localhost:0")
 	require.NoError(t, err)
 	go func() {
 		s.Launch()
 		t.Log("Server stopped.")
-	}()
+	}()*/
 
 	client1 := server.NewSampleClient()
-	err = client1.Connect(serverAddr)
+	err = client1.Connect(testServAddr)
 	require.NoError(t, err)
 	client2 := server.NewSampleClient()
-	err = client2.Connect(serverAddr)
+	err = client2.Connect(testServAddr)
 	require.NoError(t, err)
 	client3 := server.NewSampleClient()
-	err = client3.Connect(serverAddr)
+	err = client3.Connect(testServAddr)
 	require.NoError(t, err)
 
 	joinRes1, err := client1.JoinGame()
@@ -135,20 +143,21 @@ func runTestCreditClientStream(t *testing.T, client *server.SampleClient, debugN
 }
 
 func TestCredit(t *testing.T) {
-	s := server.NewServer(testConfig)
-	serverAddr, err := s.Listen("localhost:0")
+	var err error
+	/*s := server.NewServer(testConfig)
+	_, err := s.Listen("localhost:0")
 	require.NoError(t, err)
 	go func() {
 		s.Launch()
 		t.Log("Server stopped.")
-	}()
+	}()*/
 
 	client1 := server.NewSampleClient()
-	err = client1.Connect(serverAddr)
+	err = client1.Connect(testServAddr)
 	require.NoError(t, err)
 
 	client2 := server.NewSampleClient()
-	err = client2.Connect(serverAddr)
+	err = client2.Connect(testServAddr)
 	require.NoError(t, err)
 
 	joinRes1, err := client1.JoinGame()
