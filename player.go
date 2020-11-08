@@ -12,20 +12,22 @@ type userID string
 type username string
 
 type player struct {
-	mutex    sync.RWMutex
-	userID   userID
-	username username
-	points   int32
-	stream   pb.Game_StreamServer
+	mutex             sync.RWMutex
+	userID            userID
+	username          username
+	points            int32
+	stream            pb.Game_StreamServer
+	gameStartNotified bool
 }
 
 func newPlayer(username username, points int32) *player {
 	userID := userID(uuid.New().String())
 	return &player{
-		userID:   userID,
-		username: username,
-		points:   points,
-		stream:   nil,
+		userID:            userID,
+		username:          username,
+		points:            points,
+		stream:            nil,
+		gameStartNotified: false,
 	}
 }
 

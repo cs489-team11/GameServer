@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"reflect"
 	"sync"
 	"time"
 
@@ -208,16 +209,17 @@ func (g *game) broadcast(response *pb.StreamResponse) {
 		stream := player.stream
 		// WARNING: this is a dirty workaround around the problem
 		// that start/deposit/etc handlers may be called before
-		// Stream handler is called or they may acquire locks first.
-		// Thus, broadcast function has to wait until all players
-		// have their streams set.
-		// This approach may easily cause deadlock.
-		for stream == nil {
-			time.Sleep(100 * time.Millisecond)
-			stream = player.stream
+		if stream == nil {
+			continue
 		}
 		if err := stream.Send(response); err != nil {
 			log.Printf("Could not send event to %v in game %v: %v\n", userID, g.gameID, err)
+		} else {
+			if reflect.TypeOf(response.Event) == reflect.TypeOf(pb.StreamResponse_Start_{}) {
+				player.gameStartNotified = true
+			} else if !player.gameStartNotified {
+				stream.Send(g.getStartMessage())
+			}
 		}
 	}
 }
