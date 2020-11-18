@@ -119,6 +119,23 @@ func (c *SampleClient) TakeCredit(val int32) (*pb.CreditResponse, error) {
 	return res, nil
 }
 
+func (c *SampleClient) TakeDeposit(val int32) (*pb.DepositResponse, error) {
+	if c.GameClient == nil {
+		return nil, fmt.Errorf("client is not connected to server")
+	}
+
+	req := c.GetDepositRequest(val)
+	res, err := c.GameClient.Deposit(context.Background(), req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to take deposit: %v", err)
+	}
+	log.Printf(
+		"user %v, deposit amount: %v, success: %v, explanation: %v\n",
+		c.UserID, val, res.Success, res.Explanation,
+	)
+	return res, nil
+}
+
 func (c *SampleClient) GetJoinRequest() *pb.JoinRequest {
 	return &pb.JoinRequest{
 		Username: string(c.Username),
@@ -147,6 +164,14 @@ func (c *SampleClient) GetStartRequest() *pb.StartRequest {
 
 func (c *SampleClient) GetCreditRequest(val int32) *pb.CreditRequest {
 	return &pb.CreditRequest{
+		UserId: string(c.UserID),
+		GameId: string(c.GameID),
+		Value:  val,
+	}
+}
+
+func (c *SampleClient) GetDepositRequest(val int32) *pb.DepositRequest {
+	return &pb.DepositRequest{
 		UserId: string(c.UserID),
 		GameId: string(c.GameID),
 		Value:  val,

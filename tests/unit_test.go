@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testServAddr = "178.128.85.78:9090" //"localhost:9090"
+const testServAddr = "localhost:9090" //"178.128.85.78:9090" //"localhost:9090"
 
 //const testServAddr = "localhost:0"
 
@@ -114,6 +114,10 @@ func TestStart(t *testing.T) {
 	// test passes, however, it may happen that client3.JoinGame is handled
 	// before client2.StartGame. In that case, the test may fail.
 	require.NotEqual(t, joinRes1.GameId, joinRes3.GameId)
+
+	// check that one player can start a game
+	err = client3.StartGame()
+	require.NoError(t, err)
 }
 
 func runTestCreditClientStream(t *testing.T, client *server.SampleClient, debugName string) {
@@ -136,13 +140,16 @@ func runTestCreditClientStream(t *testing.T, client *server.SampleClient, debugN
 			require.IsType(
 				t, reflect.TypeOf(streamRes.Event), reflect.TypeOf(pb.StreamResponse_Transaction_{}),
 			)
+		// next events are returnCredit, useDeposit, and returnDeposit
+		// the order is non-deterministic, so it would be difficult to reason here
+		// about what happens next
 		default:
 		}
 		t.Logf("%s, stream event: %v\n", debugName, streamRes)
 	}
 }
 
-func TestCredit(t *testing.T) {
+func TestCreditAndDeposit(t *testing.T) {
 	var err error
 	/*s := server.NewServer(testConfig)
 	_, err := s.Listen("localhost:0")
@@ -179,14 +186,21 @@ func TestCredit(t *testing.T) {
 	_, err = client2.TakeCredit(-234)
 	require.NotNil(t, err)
 
+	res2, err := client1.TakeDeposit(83)
+	require.NoError(t, err)
+	require.True(t, res2.Success)
+
+	_, err = client1.TakeDeposit(0)
+	require.NotNil(t, err)
+
 	// requesting too much money so that the bank cannot
 	// grant the credit.
 	res, err := client1.TakeCredit(100000)
 	require.NoError(t, err)
 	require.False(t, res.Success)
 
-	// this is needed, since after start is handled, the stream
-	// goroutine will be abruptly finished. so I'm giving it time
+	// this is needed, since after this goroutine finishes, the stream
+	// goroutines will be abruptly finished. so I'm giving it time
 	// to process events.
 	time.Sleep(2 * time.Second)
 }
