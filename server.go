@@ -130,8 +130,35 @@ func (s *Server) Credit(_ context.Context, req *pb.CreditRequest) (*pb.CreditRes
 	return s.getCreditResponseMessage(success, explanation), nil
 }
 
+// Deposit will check if the deposit can be granted. It will return "True" for success, if
+// deposit has been granted. If "success == False", "explanation" will contain the relevant
+// explanation about why it hasn't been granted.
+// Requesting client has to make sure that provided game_id and user_id are vaild.
 func (s *Server) Deposit(_ context.Context, req *pb.DepositRequest) (*pb.DepositResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Unimplemented")
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	reqGameID := gameID(req.GetGameId())
+	reqUserID := userID(req.GetUserId())
+	reqVal := req.GetValue()
+
+	game, ok := s.activeGames[reqGameID]
+	if !ok {
+		err := fmt.Errorf("there is no active game with id %v", reqGameID)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if reqVal <= 0 {
+		err := fmt.Errorf("requested value has to be positive value (received: %d)", reqVal)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	success, explanation, err := game.useDeposit(reqUserID, reqVal)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	return s.getDepositResponseMessage(success, explanation), nil
 }
 
 // Stream opens the server stream with the user.
@@ -191,6 +218,13 @@ func (s *Server) getJoinResponseMessage(
 
 func (s *Server) getCreditResponseMessage(success bool, explanation string) *pb.CreditResponse {
 	return &pb.CreditResponse{
+		Success:     success,
+		Explanation: explanation,
+	}
+}
+
+func (s *Server) getDepositResponseMessage(success bool, explanation string) *pb.DepositResponse {
+	return &pb.DepositResponse{
 		Success:     success,
 		Explanation: explanation,
 	}

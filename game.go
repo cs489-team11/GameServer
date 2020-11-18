@@ -174,6 +174,37 @@ func (g *game) useCredit(userID userID, val int32) (bool, string, error) {
 	return true, "", nil
 }
 
+// useDeposit returns "True" and empty string, if deposit can be granted.
+// Otherwise, it will return "False" and explanation why deposit has not
+// been granted.
+func (g *game) useDeposit(userID userID, val int32) (bool, string, error) {
+	player, ok := g.players[userID]
+	if !ok {
+		return false, "", fmt.Errorf("there is no player with id %v in the game", userID)
+	}
+
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	// We will grant all deposit requests
+	// However, later, if the person puts too much money for deposit and we
+	// think we cannot return back money with interest, we could reject
+	// the request.
+	g.bankPoints += val
+	player.points -= val
+
+	time.AfterFunc(time.Duration(g.config.depositTime)*time.Second, func() {
+		g.returnDeposit(userID, val)
+	})
+
+	go func() {
+		msg := g.getUseDepositMessage(userID, val)
+		g.broadcast(msg)
+	}()
+
+	return true, "", nil
+}
+
 func (g *game) returnCredit(userID userID, val int32) {
 	player, ok := g.players[userID]
 	if !ok {
@@ -193,6 +224,28 @@ func (g *game) returnCredit(userID userID, val int32) {
 
 	go func() {
 		msg := g.getReturnCreditMessage(userID, valWithInterest)
+		g.broadcast(msg)
+	}()
+}
+
+func (g *game) returnDeposit(userID userID, val int32) {
+	player, ok := g.players[userID]
+	if !ok {
+		log.Printf("returnDeposit has been called with user %v, who is not in this game", userID)
+	}
+
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	floatInterest := float64(val) * float64(g.config.depositInterest) / 100.0
+	interest := int32(math.Ceil(floatInterest))
+	valWithInterest := val + interest
+
+	g.bankPoints -= valWithInterest
+	player.points += valWithInterest
+
+	go func() {
+		msg := g.getReturnDepositMessage(userID, valWithInterest)
 		g.broadcast(msg)
 	}()
 }
@@ -293,6 +346,28 @@ func (g *game) getUseCreditMessage(userID userID, val int32) *pb.StreamResponse 
 }
 
 // As this function uses Readlock, it has to be spawned in a separate goroutine.
+func (g *game) getUseDepositMessage(userID userID, val int32) *pb.StreamResponse {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	players := g.getPBPlayersWithBank()
+	res := &pb.StreamResponse{
+		Event: &pb.StreamResponse_Transaction_{
+			Transaction: &pb.StreamResponse_Transaction{
+				Players: players,
+				Event: &pb.StreamResponse_Transaction_UseDeposit_{
+					UseDeposit: &pb.StreamResponse_Transaction_UseDeposit{
+						UserId: string(userID),
+						Value:  val,
+					},
+				},
+			},
+		},
+	}
+	return res
+}
+
+// As this function uses Readlock, it has to be spawned in a separate goroutine.
 func (g *game) getReturnCreditMessage(userID userID, valWithInterest int32) *pb.StreamResponse {
 	g.mutex.RLock()
 	defer g.mutex.RUnlock()
@@ -304,6 +379,28 @@ func (g *game) getReturnCreditMessage(userID userID, valWithInterest int32) *pb.
 				Players: players,
 				Event: &pb.StreamResponse_Transaction_ReturnCredit_{
 					ReturnCredit: &pb.StreamResponse_Transaction_ReturnCredit{
+						UserId: string(userID),
+						Value:  valWithInterest,
+					},
+				},
+			},
+		},
+	}
+	return res
+}
+
+// As this function uses Readlock, it has to be spawned in a separate goroutine.
+func (g *game) getReturnDepositMessage(userID userID, valWithInterest int32) *pb.StreamResponse {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	players := g.getPBPlayersWithBank()
+	res := &pb.StreamResponse{
+		Event: &pb.StreamResponse_Transaction_{
+			Transaction: &pb.StreamResponse_Transaction{
+				Players: players,
+				Event: &pb.StreamResponse_Transaction_ReturnDeposit_{
+					ReturnDeposit: &pb.StreamResponse_Transaction_ReturnDeposit{
 						UserId: string(userID),
 						Value:  valWithInterest,
 					},
