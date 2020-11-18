@@ -175,15 +175,18 @@ func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
 		game = g
 	}
 
+	// WARNING: pay attention to this
+	// when modifying code.
+	s.mutex.RUnlock()
+
 	if game == nil {
 		return status.Errorf(codes.InvalidArgument, "game with id %v doesn't exist or is finished", reqGameID)
 	}
 
-	game.setPlayerStream(reqUserID, srv)
-
-	// WARNING: pay attention to this
-	// when modifying code.
-	s.mutex.RUnlock()
+	err := game.setPlayerStream(reqUserID, srv)
+	if err != nil {
+		return status.Errorf(codes.InvalidArgument, "failed to set player stream: %v", err)
+	}
 
 	ctx := srv.Context()
 	for {

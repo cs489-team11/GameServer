@@ -250,8 +250,17 @@ func (g *game) returnDeposit(userID userID, val int32) {
 	}()
 }
 
-func (g *game) setPlayerStream(userID userID, stream pb.Game_StreamServer) {
-	g.players[userID].setStream(stream)
+func (g *game) setPlayerStream(userID userID, stream pb.Game_StreamServer) error {
+	g.mutex.Lock() /* WRITE lock for player.setStream */
+	defer g.mutex.Unlock()
+
+	player, ok := g.players[userID]
+	if !ok {
+		return fmt.Errorf("setPlayerStream: invalid user id %v", userID)
+	}
+
+	player.setStream(stream)
+	return nil
 }
 
 // Broadcast sends some event to all users in the game.
@@ -288,6 +297,8 @@ func (g *game) getBankAsPBPlayer() *pb.Player {
 // WARNING: This function doesn't use any locks (in order not to spawn
 // another goroutine). So make sure that goroutine, which calls this function
 // uses at least read-lock.
+// Read-lock is needed since g.players are read and the state of each player
+// is read.
 func (g *game) getPBPlayersWithBank() []*pb.Player {
 	var players []*pb.Player
 	for _, player := range g.players {
