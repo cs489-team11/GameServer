@@ -18,17 +18,19 @@ message JoinResponse {
   string user_id = 1;
   string game_id = 2;
 
-  // fields related to the game configs
-  int32 duration = 3;
-  int32 player_points = 4;
-  int32 bank_points_per_player = 5;
-  int32 credit_interest = 6;
-  int32 deposit_interest = 7;
-  int32 credit_time = 8;
-  int32 deposit_time = 9;
-
   // players who already joined the game
-  repeated Player players = 10;
+  repeated Player players = 3;
+
+  // fields related to the game configs
+  int32 duration = 4;
+  int32 player_points = 5;
+  int32 bank_points_per_player = 6;
+  int32 credit_interest = 7;
+  int32 deposit_interest = 8;
+  int32 credit_time = 9;
+  int32 deposit_time = 10;
+  int32 theft_time = 11;
+  int32 theft_percentage = 12;
 }
 
 message LeaveRequest {
