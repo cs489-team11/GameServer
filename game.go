@@ -32,6 +32,8 @@ type GameConfig struct {
 	depositInterest     int32
 	creditTime          int32
 	depositTime         int32
+	theftTime           int32
+	theftPercentage     int32
 }
 
 // NewGameConfig returns pointer to a newly created
@@ -44,6 +46,8 @@ func NewGameConfig(
 	depositInterest int32,
 	creditTime int32,
 	depositTime int32,
+	theftTime int32,
+	theftPercentage int32,
 ) GameConfig {
 	return GameConfig{
 		duration:            duration,
@@ -53,6 +57,8 @@ func NewGameConfig(
 		depositInterest:     depositInterest,
 		creditTime:          creditTime,
 		depositTime:         depositTime,
+		theftTime:           theftTime,
+		theftPercentage:     theftPercentage,
 	}
 }
 

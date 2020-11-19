@@ -19,10 +19,18 @@ func parseArgs(
 	depositInterest *int32,
 	creditTime *int32,
 	depositTime *int32,
+	theftTime *int32,
+	theftPercentage *int32,
 ) {
 	flag.Parse()
-	if flag.NArg() < 8 {
-		fmt.Println("Got less arguments than expected")
+	receivedArgs := flag.NArg()
+	requiredArgs := 10
+	if receivedArgs < requiredArgs {
+		fmt.Printf(
+			"Got less arguments than expected. Have: %d. Want: %d.\n",
+			receivedArgs,
+			requiredArgs,
+		)
 		os.Exit(1)
 	}
 
@@ -76,6 +84,20 @@ func parseArgs(
 		os.Exit(2)
 	}
 	*depositTime = int32(arg7)
+
+	arg8, err := strconv.Atoi(flag.Arg(8))
+	if err != nil {
+		fmt.Printf("%s is not an integer\n", flag.Arg(8))
+		os.Exit(2)
+	}
+	*theftTime = int32(arg8)
+
+	arg9, err := strconv.Atoi(flag.Arg(9))
+	if err != nil {
+		fmt.Printf("%s is not an integer\n", flag.Arg(9))
+		os.Exit(2)
+	}
+	*theftPercentage = int32(arg9)
 }
 
 func main() {
@@ -87,6 +109,8 @@ func main() {
 	var depositInterest int32
 	var creditTime int32
 	var depositTime int32
+	var theftTime int32
+	var theftPercentage int32
 	parseArgs(
 		&servAddr,
 		&duration,
@@ -96,6 +120,8 @@ func main() {
 		&depositInterest,
 		&creditTime,
 		&depositTime,
+		&theftTime,
+		&theftPercentage,
 	)
 
 	if creditInterest <= depositInterest {
@@ -107,11 +133,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if creditTime >= duration || depositTime >= duration {
+	if creditInterest >= 100 || depositInterest >= 100 || theftPercentage >= 100 {
 		fmt.Printf(
-			"Credit (%d) and deposit (%d) times have to be less than duration of a game (%d).\n",
+			"Credit (%d), deposit (%d), theft (%d) percentages have to be less than 100 percent.\n",
+			creditInterest,
+			depositInterest,
+			theftPercentage,
+		)
+		os.Exit(1)
+	}
+
+	if creditTime >= duration || depositTime >= duration || theftTime >= duration {
+		fmt.Printf(
+			"Credit (%d)sec, deposit (%d)sec, theft (%d)sec times have to be less than duration of a game (%d).\n",
 			creditTime,
 			depositTime,
+			theftTime,
 			duration,
 		)
 		os.Exit(1)
@@ -125,6 +162,8 @@ func main() {
 		depositInterest,
 		creditTime,
 		depositTime,
+		theftTime,
+		theftPercentage,
 	)
 
 	s := server.NewServer(gameConfig)
