@@ -11,21 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testServAddr = "localhost:9090" //"178.128.85.78:9090" //"localhost:9090"
+const testServAddr = "178.128.85.78:9090" //"localhost:9090"
 
 //const testServAddr = "localhost:0"
 
-var testConfig = server.NewGameConfig(30, 200, 400, 30, 20, 1, 1)
-
 func TestJoinAndLeave(t *testing.T) {
 	var err error
-	/*s := server.NewServer(testConfig)
-	_, err := s.Listen("localhost:0")
-	require.NoError(t, err)
-	go func() {
-		s.Launch()
-		t.Log("Server stopped.")
-	}()*/
 
 	client1 := server.NewSampleClient()
 	err = client1.Connect(testServAddr)
@@ -81,13 +72,6 @@ func TestJoinAndLeave(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	var err error
-	/*s := server.NewServer(testConfig)
-	_, err := s.Listen("localhost:0")
-	require.NoError(t, err)
-	go func() {
-		s.Launch()
-		t.Log("Server stopped.")
-	}()*/
 
 	client1 := server.NewSampleClient()
 	err = client1.Connect(testServAddr)
@@ -151,13 +135,6 @@ func runTestCreditClientStream(t *testing.T, client *server.SampleClient, debugN
 
 func TestCreditAndDeposit(t *testing.T) {
 	var err error
-	/*s := server.NewServer(testConfig)
-	_, err := s.Listen("localhost:0")
-	require.NoError(t, err)
-	go func() {
-		s.Launch()
-		t.Log("Server stopped.")
-	}()*/
 
 	client1 := server.NewSampleClient()
 	err = client1.Connect(testServAddr)

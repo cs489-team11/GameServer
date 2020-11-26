@@ -122,12 +122,12 @@ func (g *game) getWinnerID() userID {
 	return winnerID
 }
 
-// Bank points are calculated.
 func (g *game) start() {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
 	g.state = activeState
+	// bank points are calculated
 	g.bankPoints = int32(len(g.players)) * g.config.bankPointsPerPlayer
 
 	// broadcasting game start
@@ -136,7 +136,10 @@ func (g *game) start() {
 		g.broadcast(msg)
 	}()
 
-	// TODO: launch theft timer
+	// launch theft timer
+	time.AfterFunc(time.Duration(g.config.theftTime)*time.Second, func() {
+		g.doTheft()
+	})
 }
 
 func (g *game) finish() {
@@ -254,6 +257,51 @@ func (g *game) returnDeposit(userID userID, val int32) {
 		msg := g.getReturnDepositMessage(userID, valWithInterest)
 		g.broadcast(msg)
 	}()
+}
+
+// The calling function has to acquire at least read lock
+// for accurate reading of player points.
+func (g *game) printPlayersPoints(preMsg string) {
+	log.Println(preMsg)
+	for _, player := range g.players {
+		log.Printf("%s: %d points, ", player.userID, player.points)
+	}
+}
+
+func (g *game) doTheft() {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	var userIDs []userID
+	var theftAmounts []int32
+
+	g.printPlayersPoints("Players' points BEFORE theft")
+	for userID, player := range g.players {
+		floatTheftAmount := float64(player.points) * float64(g.config.theftPercentage) / 100.0
+		theftAmount := int32(math.Ceil(floatTheftAmount))
+
+		// send only if theft amount is positive number
+		// if the theft amount is negative or zero, then we won't do the theft
+		// and we won't send a redundant or meaningless message about it
+		if theftAmount > 0 {
+			player.points -= theftAmount // point deduction from player
+			g.bankPoints += theftAmount  // add them to bank
+
+			userIDs = append(userIDs, userID)
+			theftAmounts = append(theftAmounts, theftAmount)
+		}
+	}
+	g.printPlayersPoints("Players' points AFTER theft")
+
+	go func() {
+		msg := g.getTheftMessage(userIDs, theftAmounts)
+		g.broadcast(msg)
+		log.Printf("Theft happened as follows:\n%v", msg)
+	}()
+
+	time.AfterFunc(time.Duration(g.config.theftTime)*time.Second, func() {
+		g.doTheft()
+	})
 }
 
 func (g *game) setPlayerStream(userID userID, stream pb.Game_StreamServer) error {
@@ -420,6 +468,36 @@ func (g *game) getReturnDepositMessage(userID userID, valWithInterest int32) *pb
 					ReturnDeposit: &pb.StreamResponse_Transaction_ReturnDeposit{
 						UserId: string(userID),
 						Value:  valWithInterest,
+					},
+				},
+			},
+		},
+	}
+	return res
+}
+
+// As this function uses Readlock, it has to be spawned in a separate goroutine.
+func (g *game) getTheftMessage(userIDs []userID, theftAmounts []int32) *pb.StreamResponse {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	var robbedPlayers []*pb.StreamResponse_Transaction_Theft_RobbedPlayer
+	for ind := range userIDs {
+		robbedPlayer := &pb.StreamResponse_Transaction_Theft_RobbedPlayer{
+			UserId: string(userIDs[ind]),
+			Value:  theftAmounts[ind],
+		}
+		robbedPlayers = append(robbedPlayers, robbedPlayer)
+	}
+
+	players := g.getPBPlayersWithBank()
+	res := &pb.StreamResponse{
+		Event: &pb.StreamResponse_Transaction_{
+			Transaction: &pb.StreamResponse_Transaction{
+				Players: players,
+				Event: &pb.StreamResponse_Transaction_Theft_{
+					Theft: &pb.StreamResponse_Transaction_Theft{
+						RobbedPlayers: robbedPlayers,
 					},
 				},
 			},
