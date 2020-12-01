@@ -335,6 +335,7 @@ func (g *game) broadcast(response *pb.StreamResponse) {
 				player.gameStartNotified = true
 			} else if !player.gameStartNotified {
 				stream.Send(g.getStartMessage())
+				player.gameStartNotified = true
 			}
 		}
 	}
