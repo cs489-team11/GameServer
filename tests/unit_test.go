@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testServAddr = "178.128.85.78:9090" //"localhost:9090"
+const testServAddr = "178.128.85.78:9090" //"localhost:9090"//
 
 //const testServAddr = "localhost:0"
 
@@ -146,11 +146,12 @@ func TestCreditAndDeposit(t *testing.T) {
 
 	joinRes1, err := client1.JoinGame()
 	require.NoError(t, err)
+	go runTestCreditClientStream(t, client1, "client1")
+	// time.Sleep(1 * time.Second) // needed so that 1st player gets event that 2nd joined
+
 	joinRes2, err := client2.JoinGame()
 	require.NoError(t, err)
 	require.Equal(t, joinRes1.GameId, joinRes2.GameId)
-
-	go runTestCreditClientStream(t, client1, "client1")
 	go runTestCreditClientStream(t, client2, "client2")
 
 	err = client1.StartGame()
@@ -179,5 +180,5 @@ func TestCreditAndDeposit(t *testing.T) {
 	// this is needed, since after this goroutine finishes, the stream
 	// goroutines will be abruptly finished. so I'm giving it time
 	// to process events.
-	time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Second) // sleep time needs to be increased to see theft events
 }
