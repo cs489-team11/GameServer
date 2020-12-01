@@ -96,6 +96,13 @@ func (g *game) addPlayer(username username) userID {
 	defer g.mutex.Unlock()
 	player := newPlayer(username, g.config.playerPoints)
 	g.players[player.userID] = player
+
+	// broadcasting player joining
+	go func() {
+		msg := g.getJoinMessage(player)
+		g.broadcast(msg)
+	}()
+
 	return player.userID
 }
 
@@ -105,6 +112,12 @@ func (g *game) deletePlayer(userID userID) {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 	delete(g.players, userID)
+
+	// broadcasting player leaving
+	go func() {
+		msg := g.getLeaveMessage(userID)
+		g.broadcast(msg)
+	}()
 }
 
 // NOTE: This function uses readlock, so it has to be used carefully.
@@ -363,6 +376,37 @@ func (g *game) getPBPlayersWithBank() []*pb.Player {
 	return players
 }
 
+// As this function uses Readlock, it has to be spawned in a separate goroutine.
+func (g *game) getJoinMessage(player *player) *pb.StreamResponse {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	pbPlayer := player.toPBPlayer()
+	res := &pb.StreamResponse{
+		Event: &pb.StreamResponse_Join_{
+			Join: &pb.StreamResponse_Join{
+				Player: pbPlayer,
+			},
+		},
+	}
+	return res
+}
+
+// This function can be called from anywhere, as it doesn't
+// refer to the state of the game and does not use any locks.
+func (g *game) getLeaveMessage(userID userID) *pb.StreamResponse {
+	res := &pb.StreamResponse{
+		Event: &pb.StreamResponse_Leave_{
+			Leave: &pb.StreamResponse_Leave{
+				UserId: string(userID),
+			},
+		},
+	}
+	return res
+}
+
+// This function can be called from anywhere, as it doesn't
+// refer to the state of the game and does not use any locks.
 func (g *game) getStartMessage() *pb.StreamResponse {
 	res := &pb.StreamResponse{
 		Event: &pb.StreamResponse_Start_{
