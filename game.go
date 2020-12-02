@@ -343,13 +343,19 @@ func (g *game) broadcast(response *pb.StreamResponse) {
 		}
 		if err := stream.Send(response); err != nil {
 			log.Printf("Could not send event to %v in game %v: %v\n", userID, g.gameID, err)
-		} else {
-			if reflect.TypeOf(response.Event) == reflect.TypeOf(pb.StreamResponse_Start_{}) {
-				player.gameStartNotified = true
-			} else if !player.gameStartNotified {
-				stream.Send(g.getStartMessage())
-				player.gameStartNotified = true
-			}
+			continue
+		}
+
+		// if sent message is Start, then player marked as notified about start
+		if reflect.TypeOf(response.Event) == reflect.TypeOf(pb.StreamResponse_Start_{}) {
+			player.gameStartNotified = true
+		}
+
+		// if game is in active state and the player has not been notified about start,
+		// then notify player about start and mark player as notified
+		if g.state == activeState && !player.gameStartNotified {
+			stream.Send(g.getStartMessage())
+			player.gameStartNotified = true
 		}
 	}
 }
