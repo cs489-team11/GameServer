@@ -31,6 +31,8 @@ message JoinResponse {
   int32 deposit_time = 10;
   int32 theft_time = 11;
   int32 theft_percentage = 12;
+  int32 lottery_time = 13;
+  int32 lottery_max_win = 14;
 }
 
 message LeaveRequest {
@@ -82,6 +84,18 @@ message DepositResponse {
   string explanation = 2;
 }
 
+message LotteryRequest {
+  string user_id = 1;
+  string game_id = 2;
+  int32 cell_index = 3; // has to be from 1 to 9
+}
+
+message LotteryResponse {
+  bool success = 1;
+  repeated int32 cell_values = 2; // 9 values for each cell
+  int32 win_points = 3;
+}
+
 message StreamRequest {
   string user_id = 1;
   string game_id = 2;
@@ -127,6 +141,7 @@ message StreamResponse {
       ReturnCredit return_credit = 4;
       ReturnDeposit return_deposit = 5;
       Theft theft = 6;
+      Lottery lottery = 7;
     }
 
     message UseCredit {
@@ -157,6 +172,11 @@ message StreamResponse {
         // value shows how much money has been stolen from the player.
         int32 value = 2;
       }
+    }
+
+    message Lottery {
+      string user_id = 1;
+      int32 value = 2;
     }
   }
 }
@@ -190,6 +210,8 @@ service Game {
   rpc Credit(CreditRequest) returns(CreditResponse) {}
 
   rpc Deposit(DepositRequest) returns(DepositResponse) {}
+
+  rpc Lottery(LotteryRequest) returns(LotteryResponse) {}
 
   // Other RPCs related to the game scenario will be similar to
   // the Credit and Deposit RPCs.
