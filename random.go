@@ -50,3 +50,14 @@ func RandomGameID() string {
 func RandBool() bool {
 	return seededRand.Intn(2) == 1
 }
+
+// RandShuffle returns the randonly shuffled version
+// of the slice
+func RandShuffle(src []int32) []int32 {
+	dest := make([]int32, len(src))
+	perm := rand.Perm(len(src))
+	for i, v := range perm {
+		dest[v] = src[i]
+	}
+	return dest
+}

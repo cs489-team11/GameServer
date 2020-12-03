@@ -161,6 +161,36 @@ func (s *Server) Deposit(_ context.Context, req *pb.DepositRequest) (*pb.Deposit
 	return s.getDepositResponseMessage(success, explanation), nil
 }
 
+// Lottery conducts a lottery per player request.
+// Success will be false, if the user calls the lottery before it is allowed by timer.
+func (s *Server) Lottery(_ context.Context, req *pb.LotteryRequest) (*pb.LotteryResponse, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	reqGameID := gameID(req.GetGameId())
+	reqUserID := userID(req.GetUserId())
+	reqCellIndex := req.GetCellIndex()
+
+	game, ok := s.activeGames[reqGameID]
+	if !ok {
+		err := fmt.Errorf("there is no active game with id %v", reqGameID)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	// TODO: ideally, 1 and 9 have to be in game config and not be exact numbers in code.
+	if reqCellIndex < 1 || reqCellIndex > 9 {
+		err := fmt.Errorf("cell index has to be from 1 to 9, received: %d", reqCellIndex)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	success, cellValues, winPoints, err := game.playLottery(reqUserID, reqCellIndex)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	return s.getLotteryResponseMessage(success, cellValues, winPoints), nil
+}
+
 // Stream opens the server stream with the user.
 func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
 	s.mutex.RLock()
@@ -230,6 +260,14 @@ func (s *Server) getDepositResponseMessage(success bool, explanation string) *pb
 	return &pb.DepositResponse{
 		Success:     success,
 		Explanation: explanation,
+	}
+}
+
+func (s *Server) getLotteryResponseMessage(success bool, cellValues []int32, winPoints int32) *pb.LotteryResponse {
+	return &pb.LotteryResponse{
+		Success:    success,
+		CellValues: cellValues,
+		WinPoints:  winPoints,
 	}
 }
 

@@ -34,6 +34,8 @@ type GameConfig struct {
 	depositTime         int32
 	theftTime           int32
 	theftPercentage     int32
+	lotteryTime         int32
+	lotteryMaxWin       int32
 }
 
 // NewGameConfig returns pointer to a newly created
@@ -48,6 +50,8 @@ func NewGameConfig(
 	depositTime int32,
 	theftTime int32,
 	theftPercentage int32,
+	lotteryTime int32,
+	lotteryMaxWin int32,
 ) GameConfig {
 	return GameConfig{
 		duration:            duration,
@@ -59,6 +63,8 @@ func NewGameConfig(
 		depositTime:         depositTime,
 		theftTime:           theftTime,
 		theftPercentage:     theftPercentage,
+		lotteryTime:         lotteryTime,
+		lotteryMaxWin:       lotteryMaxWin,
 	}
 }
 
@@ -66,25 +72,56 @@ func NewGameConfig(
 // Since there is only single [secondary] bank, its info
 // is also contained in this struct.
 type game struct {
-	mutex      sync.RWMutex
-	gameID     gameID
-	state      gameState
-	config     GameConfig
-	players    map[userID]*player
-	bankPoints int32
-	// credits - probably some channel through which expiration of credit time will be notified.
-	// deposits - same as credits.
+	mutex             sync.RWMutex
+	gameID            gameID
+	state             gameState
+	config            GameConfig
+	players           map[userID]*player
+	bankPoints        int32
+	lotteryCellValues []int32
+}
+
+func getNumberProportion(num int32, percentage int32) int32 {
+	floatRes := float64(num) * float64(percentage) / 100.0
+	res := int32(math.Ceil(floatRes))
+	return res
+}
+
+func generateLotteryCellValues(maxWin int32) []int32 {
+	// TODO: put cellCount to game config
+	cellCount := 9
+
+	res := make([]int32, cellCount)
+
+	winPoints1 := int32(0)
+	res[0] = winPoints1
+	res[1] = winPoints1
+	winPoints2 := getNumberProportion(maxWin, 20)
+	res[2] = winPoints2
+	res[3] = winPoints2
+	winPoints3 := getNumberProportion(maxWin, 30)
+	res[4] = winPoints3
+	res[5] = winPoints3
+	winPoints4 := getNumberProportion(maxWin, 60)
+	res[6] = winPoints4
+	res[7] = winPoints4
+	winPoints5 := maxWin
+	res[8] = winPoints5
+
+	return res
 }
 
 // Creates new game in waiting state.
 func newGame(config GameConfig) *game {
 	gameID := gameID(uuid.New().String())
+	lotteryCellValues := generateLotteryCellValues(config.lotteryMaxWin)
 	return &game{
-		gameID:     gameID,
-		state:      waitingState,
-		config:     config,
-		players:    make(map[userID]*player),
-		bankPoints: 0, // to be calculated in "start" function
+		gameID:            gameID,
+		state:             waitingState,
+		config:            config,
+		players:           make(map[userID]*player),
+		bankPoints:        0, // to be calculated in "start" function
+		lotteryCellValues: lotteryCellValues,
 	}
 }
 
@@ -142,6 +179,12 @@ func (g *game) start() {
 	g.state = activeState
 	// bank points are calculated
 	g.bankPoints = int32(len(g.players)) * g.config.bankPointsPerPlayer
+
+	// marking each player as if he has just played the lottery
+	// users can play their first lottery after g.config.lotteryTime seconds.
+	for _, player := range g.players {
+		player.updateLastLotteryTime()
+	}
 
 	// broadcasting game start
 	go func() {
@@ -254,6 +297,7 @@ func (g *game) returnDeposit(userID userID, val int32) {
 	player, ok := g.players[userID]
 	if !ok {
 		log.Printf("returnDeposit has been called with user %v, who is not in this game", userID)
+		return
 	}
 
 	g.mutex.Lock()
@@ -270,6 +314,56 @@ func (g *game) returnDeposit(userID userID, val int32) {
 		msg := g.getReturnDepositMessage(userID, valWithInterest)
 		g.broadcast(msg)
 	}()
+}
+
+func (g *game) playLottery(userID userID, cellIndex int32) (bool, []int32, int32, error) {
+	success := false
+	cellValues := []int32{}
+	winPoints := int32(0)
+
+	player, ok := g.players[userID]
+	if !ok {
+		errMsg := fmt.Sprintf("playLottery has been called with user %v, who is not in this game", userID)
+		log.Printf(errMsg)
+		return success, cellValues, winPoints, fmt.Errorf(errMsg)
+	}
+
+	// locking for reads and writes
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	if !player.canPlayLottery(g.config.lotteryTime) {
+		timePassed := time.Since(player.lastLotteryTime).Seconds()
+		errMsg := fmt.Sprintf(
+			"please wait until next lottery time, only %f out of %d seconds have passed",
+			timePassed,
+			g.config.lotteryTime,
+		)
+		return success, cellValues, winPoints, fmt.Errorf(errMsg)
+	}
+
+	// all conditions for lottery are correct
+	// first, calculate lottery values
+	cellValues = RandShuffle(g.lotteryCellValues)
+	winPoints = cellValues[cellIndex-1]
+	success = true
+
+	// record that player have just played lottery
+	player.updateLastLotteryTime()
+
+	// only if player won some amount
+	if winPoints > 0 {
+		// add points to player
+		player.points += winPoints
+		g.bankPoints -= winPoints
+
+		go func() {
+			msg := g.getLotteryMessage(player.userID, winPoints)
+			g.broadcast(msg)
+		}()
+	}
+
+	return success, cellValues, winPoints, nil
 }
 
 // The calling function has to acquire at least read lock
@@ -549,6 +643,28 @@ func (g *game) getTheftMessage(userIDs []userID, theftAmounts []int32) *pb.Strea
 				Event: &pb.StreamResponse_Transaction_Theft_{
 					Theft: &pb.StreamResponse_Transaction_Theft{
 						RobbedPlayers: robbedPlayers,
+					},
+				},
+			},
+		},
+	}
+	return res
+}
+
+// As this function uses Readlock, it has to be spawned in a separate goroutine.
+func (g *game) getLotteryMessage(userID userID, val int32) *pb.StreamResponse {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	players := g.getPBPlayersWithBank()
+	res := &pb.StreamResponse{
+		Event: &pb.StreamResponse_Transaction_{
+			Transaction: &pb.StreamResponse_Transaction{
+				Players: players,
+				Event: &pb.StreamResponse_Transaction_Lottery_{
+					Lottery: &pb.StreamResponse_Transaction_Lottery{
+						UserId: string(userID),
+						Value:  val,
 					},
 				},
 			},
