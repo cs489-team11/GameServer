@@ -339,7 +339,9 @@ func (g *game) playLottery(userID userID, cellIndex int32) (bool, []int32, int32
 			timePassed,
 			g.config.lotteryTime,
 		)
-		return success, cellValues, winPoints, fmt.Errorf(errMsg)
+		log.Println(errMsg)
+		// err is nil, but success is false according to game logic
+		return success, cellValues, winPoints, nil
 	}
 
 	// all conditions for lottery are correct
