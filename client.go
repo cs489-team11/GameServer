@@ -42,6 +42,7 @@ func (c *SampleClient) ProcessJoinResponse(res *pb.JoinResponse) {
 		res.CreditInterest, res.DepositInterest,
 		res.CreditTime, res.DepositTime,
 		res.TheftTime, res.TheftPercentage,
+		res.LotteryTime, res.LotteryMaxWin,
 	)
 }
 
