@@ -33,6 +33,7 @@ message JoinResponse {
   int32 theft_percentage = 12;
   int32 lottery_time = 13;
   int32 lottery_max_win = 14;
+  int32 question_win_percentage = 15;
 }
 
 message LeaveRequest {
@@ -96,6 +97,34 @@ message LotteryResponse {
   int32 win_points = 3;
 }
 
+message GenerateQuestionRequest {
+  string user_id = 1;
+  string game_id = 2;
+  // These points will be withdrawn during this request
+  // even if player does not answer the question
+  int32 bid_points = 3;
+}
+
+message GenerateQuestionResponse {
+  // 4 questions
+  string question_id = 1;
+  string question = 2;
+  repeated string answers = 3;
+}
+
+message AnswerQuestionRequest {
+  string user_id = 1;
+  string game_id = 2;
+  string question_id = 3;
+  int32 answer = 4; // index from 1 to 4
+}
+
+message AnswerQuestionResponse {
+  bool answer_is_correct = 1;
+  int32 correct_answer = 2; // index from 1 to 4
+  int32 win_points = 3; // 0 if !answer_is_correct, otherwise (bid_points * question_win_percentage / 100)
+}
+
 message StreamRequest {
   string user_id = 1;
   string game_id = 2;
@@ -142,6 +171,7 @@ message StreamResponse {
       ReturnDeposit return_deposit = 5;
       Theft theft = 6;
       Lottery lottery = 7;
+      Question question = 8;
     }
 
     message UseCredit {
@@ -178,6 +208,13 @@ message StreamResponse {
       string user_id = 1;
       int32 value = 2;
     }
+
+    message Question {
+      string user_id = 1;
+      bool answer_is_correct = 2;
+      int32 bid_points = 3;
+      int32 win_points = 4;
+    }
   }
 }
 
@@ -212,6 +249,9 @@ service Game {
   rpc Deposit(DepositRequest) returns(DepositResponse) {}
 
   rpc Lottery(LotteryRequest) returns(LotteryResponse) {}
+
+  rpc GenerateQuestion(GenerateQuestionRequest) returns(GenerateQuestionResponse) {}
+  rpc AnswerQuestion(AnswerQuestionRequest) returns(AnswerQuestionResponse) {}
 
   // Other RPCs related to the game scenario will be similar to
   // the Credit and Deposit RPCs.
