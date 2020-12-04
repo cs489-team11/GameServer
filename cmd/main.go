@@ -23,10 +23,11 @@ func parseArgs(
 	theftPercentage *int32,
 	lotteryTime *int32,
 	lotteryMaxWin *int32,
+	questionWinPercentage *int32,
 ) {
 	flag.Parse()
 	receivedArgs := flag.NArg()
-	requiredArgs := 12
+	requiredArgs := 13
 	if receivedArgs < requiredArgs {
 		fmt.Printf(
 			"Got less arguments than expected. Have: %d. Want: %d.\n",
@@ -114,6 +115,13 @@ func parseArgs(
 		os.Exit(2)
 	}
 	*lotteryMaxWin = int32(arg11)
+
+	arg12, err := strconv.Atoi(flag.Arg(12))
+	if err != nil {
+		fmt.Printf("%s is not an integer\n", flag.Arg(12))
+		os.Exit(2)
+	}
+	*questionWinPercentage = int32(arg12)
 }
 
 func main() {
@@ -129,6 +137,7 @@ func main() {
 	var theftPercentage int32
 	var lotteryTime int32
 	var lotteryMaxWin int32
+	var questionWinPercentage int32
 	parseArgs(
 		&servAddr,
 		&duration,
@@ -142,6 +151,7 @@ func main() {
 		&theftPercentage,
 		&lotteryTime,
 		&lotteryMaxWin,
+		&questionWinPercentage,
 	)
 
 	if creditInterest <= depositInterest {
@@ -187,6 +197,7 @@ func main() {
 		theftPercentage,
 		lotteryTime,
 		lotteryMaxWin,
+		questionWinPercentage,
 	)
 
 	s := server.NewServer(gameConfig)

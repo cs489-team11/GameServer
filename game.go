@@ -25,17 +25,18 @@ const (
 // GameConfig contains game configuration variables, which
 // can be subject to change.
 type GameConfig struct {
-	duration            int32 // total game time in seconds
-	playerPoints        int32
-	bankPointsPerPlayer int32
-	creditInterest      int32
-	depositInterest     int32
-	creditTime          int32
-	depositTime         int32
-	theftTime           int32
-	theftPercentage     int32
-	lotteryTime         int32
-	lotteryMaxWin       int32
+	duration              int32 // total game time in seconds
+	playerPoints          int32
+	bankPointsPerPlayer   int32
+	creditInterest        int32
+	depositInterest       int32
+	creditTime            int32
+	depositTime           int32
+	theftTime             int32
+	theftPercentage       int32
+	lotteryTime           int32
+	lotteryMaxWin         int32
+	questionWinPercentage int32
 }
 
 // NewGameConfig returns pointer to a newly created
@@ -52,19 +53,21 @@ func NewGameConfig(
 	theftPercentage int32,
 	lotteryTime int32,
 	lotteryMaxWin int32,
+	questionWinPercentage int32,
 ) GameConfig {
 	return GameConfig{
-		duration:            duration,
-		playerPoints:        playerPoints,
-		bankPointsPerPlayer: bankPointsPerPlayer,
-		creditInterest:      creditInterest,
-		depositInterest:     depositInterest,
-		creditTime:          creditTime,
-		depositTime:         depositTime,
-		theftTime:           theftTime,
-		theftPercentage:     theftPercentage,
-		lotteryTime:         lotteryTime,
-		lotteryMaxWin:       lotteryMaxWin,
+		duration:              duration,
+		playerPoints:          playerPoints,
+		bankPointsPerPlayer:   bankPointsPerPlayer,
+		creditInterest:        creditInterest,
+		depositInterest:       depositInterest,
+		creditTime:            creditTime,
+		depositTime:           depositTime,
+		theftTime:             theftTime,
+		theftPercentage:       theftPercentage,
+		lotteryTime:           lotteryTime,
+		lotteryMaxWin:         lotteryMaxWin,
+		questionWinPercentage: questionWinPercentage,
 	}
 }
 
