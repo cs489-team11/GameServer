@@ -42,6 +42,7 @@ func (c *SampleClient) ProcessJoinResponse(res *pb.JoinResponse) {
 		res.CreditInterest, res.DepositInterest,
 		res.CreditTime, res.DepositTime,
 		res.TheftTime, res.TheftPercentage,
+		res.LotteryTime, res.LotteryMaxWin,
 	)
 }
 
@@ -137,6 +138,23 @@ func (c *SampleClient) TakeDeposit(val int32) (*pb.DepositResponse, error) {
 	return res, nil
 }
 
+func (c *SampleClient) PlayLottery(cellIndex int32) (*pb.LotteryResponse, error) {
+	if c.GameClient == nil {
+		return nil, fmt.Errorf("client is not connected to server")
+	}
+
+	req := c.GetLotteryRequest(cellIndex)
+	res, err := c.GameClient.Lottery(context.Background(), req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to play lottery: %v", err)
+	}
+	log.Printf(
+		"user %v, cell index: %v, success: %v, cell values: %v, win points: %v\n",
+		c.UserID, cellIndex, res.Success, res.CellValues, res.WinPoints,
+	)
+	return res, nil
+}
+
 func (c *SampleClient) GetJoinRequest() *pb.JoinRequest {
 	return &pb.JoinRequest{
 		Username: string(c.Username),
@@ -176,5 +194,13 @@ func (c *SampleClient) GetDepositRequest(val int32) *pb.DepositRequest {
 		UserId: string(c.UserID),
 		GameId: string(c.GameID),
 		Value:  val,
+	}
+}
+
+func (c *SampleClient) GetLotteryRequest(cellIndex int32) *pb.LotteryRequest {
+	return &pb.LotteryRequest{
+		UserId:    string(c.UserID),
+		GameId:    string(c.GameID),
+		CellIndex: cellIndex,
 	}
 }

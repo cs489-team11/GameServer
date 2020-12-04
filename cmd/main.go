@@ -21,10 +21,12 @@ func parseArgs(
 	depositTime *int32,
 	theftTime *int32,
 	theftPercentage *int32,
+	lotteryTime *int32,
+	lotteryMaxWin *int32,
 ) {
 	flag.Parse()
 	receivedArgs := flag.NArg()
-	requiredArgs := 10
+	requiredArgs := 12
 	if receivedArgs < requiredArgs {
 		fmt.Printf(
 			"Got less arguments than expected. Have: %d. Want: %d.\n",
@@ -98,6 +100,20 @@ func parseArgs(
 		os.Exit(2)
 	}
 	*theftPercentage = int32(arg9)
+
+	arg10, err := strconv.Atoi(flag.Arg(10))
+	if err != nil {
+		fmt.Printf("%s is not an integer\n", flag.Arg(10))
+		os.Exit(2)
+	}
+	*lotteryTime = int32(arg10)
+
+	arg11, err := strconv.Atoi(flag.Arg(11))
+	if err != nil {
+		fmt.Printf("%s is not an integer\n", flag.Arg(11))
+		os.Exit(2)
+	}
+	*lotteryMaxWin = int32(arg11)
 }
 
 func main() {
@@ -111,6 +127,8 @@ func main() {
 	var depositTime int32
 	var theftTime int32
 	var theftPercentage int32
+	var lotteryTime int32
+	var lotteryMaxWin int32
 	parseArgs(
 		&servAddr,
 		&duration,
@@ -122,6 +140,8 @@ func main() {
 		&depositTime,
 		&theftTime,
 		&theftPercentage,
+		&lotteryTime,
+		&lotteryMaxWin,
 	)
 
 	if creditInterest <= depositInterest {
@@ -143,12 +163,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if creditTime >= duration || depositTime >= duration || theftTime >= duration {
+	if creditTime >= duration || depositTime >= duration || theftTime >= duration || lotteryTime >= duration {
 		fmt.Printf(
-			"Credit (%d)sec, deposit (%d)sec, theft (%d)sec times have to be less than duration of a game (%d).\n",
+			"Credit (%d)sec, deposit (%d)sec, theft (%d)sec, lottery (%d)sec times have to be less than duration of a game (%d).\n",
 			creditTime,
 			depositTime,
 			theftTime,
+			lotteryTime,
 			duration,
 		)
 		os.Exit(1)
@@ -164,6 +185,8 @@ func main() {
 		depositTime,
 		theftTime,
 		theftPercentage,
+		lotteryTime,
+		lotteryMaxWin,
 	)
 
 	s := server.NewServer(gameConfig)
