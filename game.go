@@ -354,7 +354,7 @@ func (g *game) playLottery(userID userID, cellIndex int32) (bool, []int32, int32
 	player.updateLastLotteryTime()
 
 	// only if player won some amount
-	if winPoints > 0 {
+	if success && winPoints >= 0 {
 		// add points to player
 		player.points += winPoints
 		g.bankPoints -= winPoints
