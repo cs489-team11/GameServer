@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testServAddr = "178.128.85.78:9090" //"localhost:9090"//
+const testServAddr = "localhost:9090" //"178.128.85.78:9090" //"localhost:9090"//
 
 //const testServAddr = "localhost:0"
 
@@ -147,7 +147,7 @@ func TestCreditAndDeposit(t *testing.T) {
 	joinRes1, err := client1.JoinGame()
 	require.NoError(t, err)
 	go runTestCreditClientStream(t, client1, "client1")
-	// time.Sleep(1 * time.Second) // needed so that 1st player gets event that 2nd joined
+	time.Sleep(1 * time.Second) // needed so that 1st player gets event that 2nd joined
 
 	joinRes2, err := client2.JoinGame()
 	require.NoError(t, err)
@@ -176,6 +176,99 @@ func TestCreditAndDeposit(t *testing.T) {
 	res, err := client1.TakeCredit(100000)
 	require.NoError(t, err)
 	require.False(t, res.Success)
+
+	// this is needed, since after this goroutine finishes, the stream
+	// goroutines will be abruptly finished. so I'm giving it time
+	// to process events.
+	time.Sleep(2 * time.Second) // sleep time needs to be increased to see theft events
+}
+
+func runTestLotteryClientStream(t *testing.T, client *server.SampleClient, debugName string) {
+	streamErr := client.OpenStream()
+	require.NoError(t, streamErr)
+	for i := 1; i < 10000; i++ {
+		streamRes, streamErr := client.Stream.Recv()
+		if streamErr == io.EOF {
+			t.Logf("%s, catched EOF error in stream", debugName)
+			break
+		}
+		require.NoError(t, streamErr)
+		switch i {
+		case 1:
+			require.IsType(
+				t, reflect.TypeOf(streamRes.Event), reflect.TypeOf(pb.StreamResponse_Start_{}),
+			)
+		case 2:
+			// check that the second event is lottery
+			require.IsType(
+				t, reflect.TypeOf(streamRes.Event), reflect.TypeOf(pb.StreamResponse_Transaction_{}),
+			)
+		default:
+		}
+		t.Logf("%s, stream event: %v\n", debugName, streamRes)
+	}
+}
+
+func TestLottery(t *testing.T) {
+	var err error
+
+	client1 := server.NewSampleClient()
+	err = client1.Connect(testServAddr)
+	require.NoError(t, err)
+
+	client2 := server.NewSampleClient()
+	err = client2.Connect(testServAddr)
+	require.NoError(t, err)
+
+	joinRes1, err := client1.JoinGame()
+	require.NoError(t, err)
+	go runTestLotteryClientStream(t, client1, "client1")
+	time.Sleep(1 * time.Second) // needed so that 1st player gets event that 2nd joined
+
+	joinRes2, err := client2.JoinGame()
+	require.NoError(t, err)
+	require.Equal(t, joinRes1.GameId, joinRes2.GameId)
+	go runTestLotteryClientStream(t, client2, "client2")
+
+	err = client1.StartGame()
+	require.NoError(t, err)
+
+	_, err = client1.PlayLottery(123)
+	require.NotNil(t, err)
+
+	_, err = client2.PlayLottery(0)
+	require.NotNil(t, err)
+
+	_, err = client1.PlayLottery(-9)
+	require.NotNil(t, err)
+
+	// valid cell index, but calling too early
+	res1, err := client2.PlayLottery(4)
+	require.NoError(t, err)
+	require.False(t, res1.Success)
+
+	time.Sleep(2 * time.Second)
+
+	res2, err := client2.PlayLottery(3)
+	require.NoError(t, err)
+	require.True(t, res2.Success)
+	// expect 9 cell values
+	require.Len(t, res2.CellValues, 9)
+	// win points >= 0
+	require.LessOrEqual(t, int32(0), res2.WinPoints)
+
+	// valid cell index, but calling too early
+	res3, err := client2.PlayLottery(1)
+	require.NoError(t, err)
+	require.False(t, res3.Success)
+
+	time.Sleep(2 * time.Second)
+
+	res4, err := client2.PlayLottery(9)
+	require.NoError(t, err)
+	require.True(t, res4.Success)
+	require.Len(t, res4.CellValues, 9)
+	require.LessOrEqual(t, int32(0), res4.WinPoints)
 
 	// this is needed, since after this goroutine finishes, the stream
 	// goroutines will be abruptly finished. so I'm giving it time
