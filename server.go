@@ -236,16 +236,21 @@ func (s *Server) getJoinResponseMessage(
 	game.mutex.RLock()
 	defer game.mutex.RUnlock()
 	return &pb.JoinResponse{
-		UserId:              string(userID),
-		GameId:              string(game.gameID),
-		Duration:            game.config.duration,
-		PlayerPoints:        game.config.playerPoints,
-		BankPointsPerPlayer: game.config.bankPointsPerPlayer,
-		CreditInterest:      game.config.creditInterest,
-		DepositInterest:     game.config.depositInterest,
-		CreditTime:          game.config.creditTime,
-		DepositTime:         game.config.depositTime,
-		Players:             game.getPBPlayersWithBank(),
+		UserId:                string(userID),
+		GameId:                string(game.gameID),
+		Players:               game.getPBPlayersWithBank(),
+		Duration:              game.config.duration,
+		PlayerPoints:          game.config.playerPoints,
+		BankPointsPerPlayer:   game.config.bankPointsPerPlayer,
+		CreditInterest:        game.config.creditInterest,
+		DepositInterest:       game.config.depositInterest,
+		CreditTime:            game.config.creditTime,
+		DepositTime:           game.config.depositTime,
+		TheftTime:             game.config.theftTime,
+		TheftPercentage:       game.config.theftPercentage,
+		LotteryTime:           game.config.lotteryTime,
+		LotteryMaxWin:         game.config.lotteryMaxWin,
+		QuestionWinPercentage: game.config.questionWinPercentage,
 	}
 }
 
