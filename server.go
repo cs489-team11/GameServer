@@ -194,7 +194,7 @@ func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
 			log.Printf("Stream context is cancelled for game %v\n", game.gameID)
 			return nil
 		}
-		time.Sleep(200 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 	return nil
