@@ -928,10 +928,9 @@ type GenerateQuestionResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// 4 questions
 	QuestionId string   `protobuf:"bytes,1,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
-	Question   string   `protobuf:"bytes,2,opt,name=question,proto3" json:"question,omitempty"`
-	Answers    []string `protobuf:"bytes,3,rep,name=answers,proto3" json:"answers,omitempty"`
+	Question   string   `protobuf:"bytes,2,opt,name=question,proto3" json:"question,omitempty"` // 1 question
+	Answers    []string `protobuf:"bytes,3,rep,name=answers,proto3" json:"answers,omitempty"`   // 4 answers
 }
 
 func (x *GenerateQuestionResponse) Reset() {

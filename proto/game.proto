@@ -106,10 +106,9 @@ message GenerateQuestionRequest {
 }
 
 message GenerateQuestionResponse {
-  // 4 questions
   string question_id = 1;
-  string question = 2;
-  repeated string answers = 3;
+  string question = 2; // 1 question
+  repeated string answers = 3; // 4 answers
 }
 
 message AnswerQuestionRequest {
