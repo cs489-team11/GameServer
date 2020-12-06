@@ -191,6 +191,63 @@ func (s *Server) Lottery(_ context.Context, req *pb.LotteryRequest) (*pb.Lottery
 	return s.getLotteryResponseMessage(success, cellValues, winPoints), nil
 }
 
+func (s *Server) GenerateQuestion(_ context.Context, req *pb.GenerateQuestionRequest) (*pb.GenerateQuestionResponse, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	reqGameID := gameID(req.GetGameId())
+	reqUserID := userID(req.GetUserId())
+	reqBidPoints := req.GetBidPoints()
+
+	game, ok := s.activeGames[reqGameID]
+	if !ok {
+		err := fmt.Errorf("there is no active game with id %v", reqGameID)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if reqBidPoints <= 0 {
+		err := fmt.Errorf("bid points have to be more than 0, received: %d", reqBidPoints)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	questionID, question, answers, err := game.doGenerateQuestion(reqUserID, reqBidPoints)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	return s.getGenerateQuestionResponseMessage(questionID, question, answers), nil
+}
+
+func (s *Server) AnswerQuestion(_ context.Context, req *pb.AnswerQuestionRequest) (*pb.AnswerQuestionResponse, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	reqGameID := gameID(req.GetGameId())
+	reqUserID := userID(req.GetUserId())
+	reqQuestionID := questionID(req.GetQuestionId())
+	reqAnswer := req.GetAnswer()
+
+	game, ok := s.activeGames[reqGameID]
+	if !ok {
+		err := fmt.Errorf("there is no active game with id %v", reqGameID)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	if reqAnswer < 1 || reqAnswer > 4 {
+		err := fmt.Errorf("user answer has to be an integer from 1 to 4, received: %d", reqAnswer)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	answerIsCorrect, correctAnswer, winPoints, err := game.doAnswerQuestion(
+		reqUserID, reqQuestionID, reqAnswer,
+	)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	return s.getAnswerQuestionResponseMessage(answerIsCorrect, correctAnswer, winPoints), nil
+}
+
 // Stream opens the server stream with the user.
 func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
 	s.mutex.RLock()
@@ -273,6 +330,26 @@ func (s *Server) getLotteryResponseMessage(success bool, cellValues []int32, win
 		Success:    success,
 		CellValues: cellValues,
 		WinPoints:  winPoints,
+	}
+}
+
+func (s *Server) getGenerateQuestionResponseMessage(
+	questionID questionID, question string, answers []string,
+) *pb.GenerateQuestionResponse {
+	return &pb.GenerateQuestionResponse{
+		QuestionId: string(questionID),
+		Question:   question,
+		Answers:    answers,
+	}
+}
+
+func (s *Server) getAnswerQuestionResponseMessage(
+	answerIsCorrect bool, correctAnswer int32, winPoints int32,
+) *pb.AnswerQuestionResponse {
+	return &pb.AnswerQuestionResponse{
+		AnswerIsCorrect: answerIsCorrect,
+		CorrectAnswer:   correctAnswer,
+		WinPoints:       winPoints,
 	}
 }
 

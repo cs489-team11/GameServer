@@ -371,6 +371,80 @@ func (g *game) playLottery(userID userID, cellIndex int32) (bool, []int32, int32
 	return success, cellValues, winPoints, nil
 }
 
+func (g *game) doGenerateQuestion(userID userID, bidPoints int32) (questionID, string, []string, error) {
+	questionID := questionID("")
+	question := ""
+	answers := []string{}
+
+	player, ok := g.players[userID]
+	if !ok {
+		errMsg := fmt.Sprintf("doGenerateQuestion has been called with user %v, who is not in this game", userID)
+		log.Printf(errMsg)
+		return questionID, question, answers, fmt.Errorf(errMsg)
+	}
+
+	// acquiring write lock
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	questionID, question, answers, err := player.generateQuestion(bidPoints)
+	if err != nil {
+		return questionID, question, answers, err
+	}
+
+	// subtracting bid points from player
+	g.bankPoints += bidPoints
+	player.points -= bidPoints
+
+	// we do not broadcast that question was generated
+
+	return questionID, question, answers, nil
+}
+
+func (g *game) doAnswerQuestion(
+	userID userID, questionID questionID, userAnswer int32,
+) (bool, int32, int32, error) {
+	answerIsCorrect := false
+	correctAnswer := int32(0)
+	bidPoints := int32(0)
+	winPoints := int32(0)
+
+	player, ok := g.players[userID]
+	if !ok {
+		errMsg := fmt.Sprintf("doAnswerQuestion has been called with user %v, who is not in this game", userID)
+		log.Printf(errMsg)
+		return answerIsCorrect, correctAnswer, winPoints, fmt.Errorf(errMsg)
+	}
+
+	// acquiring write lock
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	answerIsCorrect, correctAnswer, bidPoints, err := player.answerQuestion(questionID, userAnswer)
+	if err != nil {
+		return answerIsCorrect, correctAnswer, winPoints, err
+	}
+
+	if answerIsCorrect {
+		floatWinPoints := float64(bidPoints) * float64(g.config.questionWinPercentage) / 100.0
+		winPoints = int32(math.Ceil(floatWinPoints))
+	} else {
+		winPoints = int32(0)
+	}
+
+	if winPoints >= 0 {
+		g.bankPoints -= winPoints
+		player.points += winPoints
+
+		go func() {
+			msg := g.getAnswerQuestionMessage(userID, answerIsCorrect, bidPoints, winPoints)
+			g.broadcast(msg)
+		}()
+	}
+
+	return answerIsCorrect, correctAnswer, winPoints, nil
+}
+
 // The calling function has to acquire at least read lock
 // for accurate reading of player points.
 func (g *game) printPlayersPoints(preMsg string) {
@@ -670,6 +744,32 @@ func (g *game) getLotteryMessage(userID userID, val int32) *pb.StreamResponse {
 					Lottery: &pb.StreamResponse_Transaction_Lottery{
 						UserId: string(userID),
 						Value:  val,
+					},
+				},
+			},
+		},
+	}
+	return res
+}
+
+// As this function uses Readlock, it has to be spawned in a separate goroutine.
+func (g *game) getAnswerQuestionMessage(
+	userID userID, answerIsCorrect bool, bidPoints int32, winPoints int32,
+) *pb.StreamResponse {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	players := g.getPBPlayersWithBank()
+	res := &pb.StreamResponse{
+		Event: &pb.StreamResponse_Transaction_{
+			Transaction: &pb.StreamResponse_Transaction{
+				Players: players,
+				Event: &pb.StreamResponse_Transaction_Question_{
+					Question: &pb.StreamResponse_Transaction_Question{
+						UserId:          string(userID),
+						AnswerIsCorrect: answerIsCorrect,
+						BidPoints:       bidPoints,
+						WinPoints:       winPoints,
 					},
 				},
 			},
