@@ -43,6 +43,7 @@ func (c *SampleClient) ProcessJoinResponse(res *pb.JoinResponse) {
 		res.CreditTime, res.DepositTime,
 		res.TheftTime, res.TheftPercentage,
 		res.LotteryTime, res.LotteryMaxWin,
+		res.QuestionWinPercentage,
 	)
 }
 
@@ -155,6 +156,40 @@ func (c *SampleClient) PlayLottery(cellIndex int32) (*pb.LotteryResponse, error)
 	return res, nil
 }
 
+func (c *SampleClient) DoGenerateQuestion(bidPoints int32) (*pb.GenerateQuestionResponse, error) {
+	if c.GameClient == nil {
+		return nil, fmt.Errorf("client is not connected to server")
+	}
+
+	req := c.GetGenerateQuestionRequest(bidPoints)
+	res, err := c.GameClient.GenerateQuestion(context.Background(), req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate question: %v", err)
+	}
+	log.Printf(
+		"user %v, bid points %v, question id: %v, question: %v, answers: %v\n",
+		c.UserID, bidPoints, res.QuestionId, res.Question, res.Answers,
+	)
+	return res, nil
+}
+
+func (c *SampleClient) DoAnswerQuestion(qID string, userAnswer int32) (*pb.AnswerQuestionResponse, error) {
+	if c.GameClient == nil {
+		return nil, fmt.Errorf("client is not connected to server")
+	}
+
+	req := c.GetAnswerQuestionRequest(questionID(qID), userAnswer)
+	res, err := c.GameClient.AnswerQuestion(context.Background(), req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to answer question: %v", err)
+	}
+	log.Printf(
+		"user %v, question id: %v, user answer: %v, answer_is_correct: %v, correct answer: %v, win points: %v",
+		c.UserID, qID, userAnswer, res.AnswerIsCorrect, res.CorrectAnswer, res.WinPoints,
+	)
+	return res, nil
+}
+
 func (c *SampleClient) GetJoinRequest() *pb.JoinRequest {
 	return &pb.JoinRequest{
 		Username: string(c.Username),
@@ -202,5 +237,22 @@ func (c *SampleClient) GetLotteryRequest(cellIndex int32) *pb.LotteryRequest {
 		UserId:    string(c.UserID),
 		GameId:    string(c.GameID),
 		CellIndex: cellIndex,
+	}
+}
+
+func (c *SampleClient) GetGenerateQuestionRequest(bidPoints int32) *pb.GenerateQuestionRequest {
+	return &pb.GenerateQuestionRequest{
+		UserId:    string(c.UserID),
+		GameId:    string(c.GameID),
+		BidPoints: bidPoints,
+	}
+}
+
+func (c *SampleClient) GetAnswerQuestionRequest(questionID questionID, answer int32) *pb.AnswerQuestionRequest {
+	return &pb.AnswerQuestionRequest{
+		UserId:     string(c.UserID),
+		GameId:     string(c.GameID),
+		QuestionId: string(questionID),
+		Answer:     answer,
 	}
 }
