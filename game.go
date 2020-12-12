@@ -264,10 +264,10 @@ func (g *game) useDeposit(userID userID, val int32) (bool, string, error) {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	// We will grant all deposit requests
-	// However, later, if the person puts too much money for deposit and we
-	// think we cannot return back money with interest, we could reject
-	// the request.
+	if player.points < val {
+		return false, "not allowed to deposit more than player has", nil
+	}
+
 	g.bankPoints += val
 	player.points -= val
 
