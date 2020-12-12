@@ -173,9 +173,9 @@ func TestCreditAndDeposit(t *testing.T) {
 
 	// requesting too much money so that the bank cannot
 	// grant the credit.
-	res, err := client1.TakeCredit(100000)
+	res3, err := client1.TakeCredit(100000)
 	require.NoError(t, err)
-	require.False(t, res.Success)
+	require.False(t, res3.Success)
 
 	// this is needed, since after this goroutine finishes, the stream
 	// goroutines will be abruptly finished. so I'm giving it time

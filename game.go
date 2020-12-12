@@ -225,8 +225,18 @@ func (g *game) useCredit(userID userID, val int32) (bool, string, error) {
 	// NOTE: this check can be deleted to allow bank to go down a bit
 	// but in that case, we would need to check that the user doesn't borrow too much
 	if g.bankPoints < val {
-		return false, fmt.Sprintf("bank cannot grant the credit due to bank's undisclosed policies"), nil
+		return false, "bank cannot grant the credit due to bank's undisclosed policies", nil
 	}
+
+	if player.points <= 0 {
+		return false, "player with no money cannot take credit", nil
+	}
+
+	// trying to ask for too much money
+	if val > (player.points * 2) {
+		return false, "asking for too much money", nil
+	}
+
 	g.bankPoints -= val
 	player.points += val
 
