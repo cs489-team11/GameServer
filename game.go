@@ -397,6 +397,10 @@ func (g *game) doGenerateQuestion(userID userID, bidPoints int32) (questionID, s
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
+	if player.points < bidPoints {
+		return questionID, question, answers, fmt.Errorf("player has less points than bid amount")
+	}
+
 	questionID, question, answers, err := player.generateQuestion(bidPoints)
 	if err != nil {
 		return questionID, question, answers, err
