@@ -90,6 +90,10 @@ func (s *Server) Start(_ context.Context, req *pb.StartRequest) (*pb.StartRespon
 	s.activeGames[game.gameID] = game
 	// count down until game finishes
 	time.AfterFunc(time.Duration(game.config.duration)*time.Second, func() {
+		s.mutex.Lock()
+		defer s.mutex.Unlock()
+		delete(s.activeGames, game.gameID)
+
 		game.finish()
 	})
 
@@ -281,6 +285,13 @@ func (s *Server) Stream(req *pb.StreamRequest, srv pb.Game_StreamServer) error {
 			log.Printf("Stream context is cancelled for game %v\n", game.gameID)
 			return nil
 		}
+
+		// stor streaming if the game is finished
+		// NOTE: "isFinished" method acquires read lock
+		if game.isFinished() {
+			return nil
+		}
+
 		time.Sleep(1 * time.Second)
 	}
 

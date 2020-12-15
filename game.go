@@ -18,8 +18,7 @@ type gameState int
 const (
 	waitingState gameState = iota
 	activeState
-	// finished - a virtual state, which exists in a state machine,
-	// but is not needed for implementation.
+	finishedState
 )
 
 // GameConfig contains game configuration variables, which
@@ -202,11 +201,22 @@ func (g *game) start() {
 }
 
 func (g *game) finish() {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+	g.state = finishedState
+
 	go func() {
 		winnerUserID := g.getWinnerID()
 		msg := g.getFinishMessage(winnerUserID)
 		g.broadcast(msg)
 	}()
+}
+
+func (g *game) isFinished() bool {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	return g.state == finishedState
 }
 
 // useCredit returns "True" and empty string, if credit can be granted.
@@ -471,6 +481,12 @@ func (g *game) printPlayersPoints(preMsg string) {
 func (g *game) doTheft() {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
+
+	// this function executes over and over again
+	// so we need to stop it after the game is finished
+	if g.state == finishedState {
+		return
+	}
 
 	var userIDs []userID
 	var theftAmounts []int32
